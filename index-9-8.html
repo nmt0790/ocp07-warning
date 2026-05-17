@@ -1,0 +1,3799 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>doixeocp07.cloud – Quản lý Đội Xe OCP07</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body,#root{height:100%}
+body{
+  background:#071E20;
+  font-family:'Nunito',sans-serif;
+  -webkit-font-smoothing:antialiased;
+  color:#D5F5F6;
+}
+/* Loading */
+#ld{
+  position:fixed;inset:0;
+  background:linear-gradient(135deg,#071E20 0%,#0B3335 50%,#17666A 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:#2DCCD3;font-size:15px;font-weight:700;gap:14px;z-index:9999;
+  letter-spacing:.5px;
+}
+.sp{
+  width:36px;height:36px;
+  border:3px solid #17666A;
+  border-top-color:#2DCCD3;
+  border-radius:50%;
+  animation:sp .8s linear infinite;
+  box-shadow:0 0 20px rgba(45,204,211,.3);
+}
+@keyframes sp{to{transform:rotate(360deg)}}
+/* Scrollbar */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#17666A;border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:#2DCCD3}
+/* Input focus */
+input:focus,select:focus,textarea:focus{
+  border-color:#2DCCD3 !important;
+  box-shadow:0 0 0 3px rgba(45,204,211,0.2) !important;
+  outline:none !important;
+}
+/* Transitions */
+button{transition:all .15s ease !important}
+</style>
+</head>
+<body>
+<div id="ld">
+  <div class="sp"></div>
+  <span>🚖 doixeocp07.cloud</span>
+</div>
+<div id="root"></div>
+<script>
+
+// ══════════════════════════════════════════════════════════
+// FIREBASE REALTIME DATABASE
+// ══════════════════════════════════════════════════════════
+const FB_URL = "https://suco-07-default-rtdb.asia-southeast1.firebasedatabase.app";
+const FB_NODE = "/suvus";
+
+async function cloudLoad() {
+  try {
+    const r = await fetch(FB_URL + FB_NODE + ".json");
+    const d = await r.json();
+    if (!d) return [];
+    return Object.values(d).filter(Boolean).map(sv => {
+      // Normalize field names từ tx-form cũ
+      if (!sv.buocHienTai && sv.buocHT) sv.buocHienTai = sv.buocHT;
+      if (!sv.ghiChu && sv.logs) sv.ghiChu = sv.logs;
+      if (!sv.ghiChu && sv.nhatKy) sv.ghiChu = sv.nhatKy;
+      return sv;
+    });
+  } catch(e) {
+    console.warn("Firebase load failed:", e);
+    return null;
+  }
+}
+
+async function cloudSave(sv) {
+  try {
+    await fetch(FB_URL + FB_NODE + "/" + sv.id + ".json", {
+      method: "PUT",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(sv)
+    });
+  } catch(e) { console.warn("Firebase save failed:", e); }
+}
+
+async function cloudDelete(id) {
+  try {
+    await fetch(FB_URL + FB_NODE + "/" + id + ".json", {
+      method: "DELETE"
+    });
+  } catch(e) { console.warn("Firebase delete failed:", e); }
+}
+
+async function cloudBatch(list) {
+  try {
+    const obj = {};
+    list.forEach(sv => { obj[sv.id] = sv; });
+    await fetch(FB_URL + FB_NODE + ".json", {
+      method: "PATCH",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(obj)
+    });
+  } catch(e) { console.warn("Firebase batch failed:", e); }
+}
+
+const {useState,useEffect,useCallback,useRef}=React;
+const TEAM = [{
+  ten: "Lân",
+  chuc: "Đội Trưởng",
+  sdt: "0984958863",
+  to: null,
+  icon: "👑",
+  mau: "#FFCA00"
+}, {
+  ten: "Toản",
+  chuc: "Tổ 1",
+  sdt: "0919179377",
+  to: "OCP.DOIXE07.01",
+  phuTrach: "Bảo hiểm · VCTN",
+  mau: "#57D6DC"
+}, {
+  ten: "Tú",
+  chuc: "Tổ 2",
+  sdt: "0988160280",
+  to: "OCP.DOIXE07.02",
+  phuTrach: "Checklist · Giao nhận",
+  mau: "#2DCCD3"
+}, {
+  ten: "Việt Anh",
+  chuc: "Tổ 3",
+  sdt: "0865679654",
+  to: "OCP.DOIXE07.03",
+  phuTrach: "Phạt nguội · Đăng kiểm",
+  mau: "#a78bfa"
+}, {
+  ten: "Thành",
+  chuc: "Tổ 4",
+  sdt: "0986368224",
+  to: "OCP.DOIXE07.04",
+  phuTrach: "Vận hành Tổ 4",
+  mau: "#fb923c"
+}, {
+  ten: "Huy",
+  chuc: "Tổ 5",
+  sdt: "0964495858",
+  to: "OCP.DOIXE07.05",
+  phuTrach: "Công lương · KN KH",
+  mau: "#ec4899"
+}];
+const LOAI_SU_VU = {
+  VCTN: {
+    label: "Va chạm tai nạn",
+    icon: "💥",
+    color: "#ef4444"
+  },
+  KY_THUAT: {
+    label: "Lỗi kỹ thuật",
+    icon: "🔧",
+    color: "#f97316"
+  },
+  KHACH_HANG: {
+    label: "Phản hồi KH",
+    icon: "💬",
+    color: "#8b5cf6"
+  },
+  NGHI_VIEC: {
+    label: "TX nghỉ việc",
+    icon: "🚪",
+    color: "#57D6DC"
+  },
+  XUONG_CA: {
+    label: "Xuống ca / Nghỉ",
+    icon: "🌙",
+    color: "#57D6DC"
+  },
+  XE_XUONG: {
+    label: "Xe vào xưởng",
+    icon: "🔨",
+    color: "#FF8C42"
+  }
+};
+const BUOC_VCTN = [{
+  id: "hien_truong",
+  label: "Hiện trường",
+  mau: "#f97316"
+}, {
+  id: "cqca",
+  label: "CQCA",
+  mau: "#8b5cf6"
+}, {
+  id: "bao_hiem",
+  label: "Bảo hiểm",
+  mau: "#57D6DC"
+}, {
+  id: "xuong",
+  label: "Xưởng SC",
+  mau: "#FFCA00"
+}, {
+  id: "thanh_toan",
+  label: "Thanh toán",
+  mau: "#2DCCD3"
+}, {
+  id: "dong",
+  label: "Đóng",
+  mau: "#57D6DC"
+}];
+const BUOC_KY_THUAT = [{
+  id: "phat_sinh",
+  label: "Phát sinh",
+  mau: "#f97316"
+}, {
+  id: "vao_xuong",
+  label: "Vào xưởng",
+  mau: "#FFCA00"
+}, {
+  id: "sua_chua",
+  label: "Đang sửa",
+  mau: "#57D6DC"
+}, {
+  id: "xuat_xuong",
+  label: "Xuất xưởng",
+  mau: "#a78bfa"
+}, {
+  id: "dong",
+  label: "Đóng",
+  mau: "#2DCCD3"
+}];
+const BUOC_KHACH_HANG = [{
+  id: "tiep_nhan",
+  label: "Tiếp nhận",
+  mau: "#f97316"
+}, {
+  id: "xac_minh",
+  label: "Xác minh",
+  mau: "#FFCA00"
+}, {
+  id: "xu_ly",
+  label: "Xử lý",
+  mau: "#57D6DC"
+}, {
+  id: "dong",
+  label: "Đóng",
+  mau: "#2DCCD3"
+}];
+const BUOC_NGHI_VIEC = [{
+  id: "thong_bao",
+  label: "Thông báo",
+  mau: "#f97316"
+}, {
+  id: "thu_hoi_xe",
+  label: "Thu hồi xe",
+  mau: "#FFCA00"
+}, {
+  id: "thanh_ly",
+  label: "Thanh lý",
+  mau: "#57D6DC"
+}, {
+  id: "hoan_coc",
+  label: "Hoàn cọc",
+  mau: "#a78bfa"
+}, {
+  id: "dong",
+  label: "Đóng",
+  mau: "#2DCCD3"
+}];
+const getBuoc = loai => ({
+  VCTN: BUOC_VCTN,
+  KY_THUAT: BUOC_KY_THUAT,
+  KHACH_HANG: BUOC_KHACH_HANG,
+  NGHI_VIEC: BUOC_NGHI_VIEC,
+  XUONG_CA: [{
+    id: "ghi_nhan",
+    label: "Ghi nhận",
+    mau: "#f97316"
+  }, {
+    id: "dong",
+    label: "Đóng",
+    mau: "#2DCCD3"
+  }],
+  XE_XUONG: [{
+    id: "vao_xuong",
+    label: "Vào xưởng",
+    mau: "#FF8C42"
+  }, {
+    id: "dang_sua",
+    label: "Đang SC",
+    mau: "#FFCA00"
+  }, {
+    id: "xuat_xuong",
+    label: "Xuất xưởng",
+    mau: "#57D6DC"
+  }, {
+    id: "dong",
+    label: "Vận doanh",
+    mau: "#2DCCD3"
+  }]
+})[loai] || [];
+const getMember = to => TEAM.find(t => t.to === to);
+const TO_LIST = ["OCP.DOIXE07.01", "OCP.DOIXE07.02", "OCP.DOIXE07.03", "OCP.DOIXE07.04", "OCP.DOIXE07.05"];
+const XUONG_LIST = ["VinFast Thịnh Cường Đài Tư Long Biên", "VinFast Con Đường Mới Hoài Đức", "VinFast CarOn Gia Lâm", "VinFast GMS Gia Lâm", "VinFast Thịnh Cường Ocean Park", "VinFast Thăng Long Trịnh Văn Bô", "VinFast Phan Trọng Tuệ Thanh Trì", "VinFast Pika Vượng An Khánh", "VinFast Sông Công"];
+const BH_LIST = ["PVI", "BSH", "BIC", "MIC", "Bảo Việt", "PJICO", "PTI", "BSH Thăng Long", "MIC Hà Thành", "MIC Thành Đô", "BSH Gia Định", "Khác"];
+const PHAM_VI_BH = ["Xe gồm pin", "Xe không gồm pin"];
+const NHOM_LOI = ["Chủ quan", "Khách quan", "Hỗn hợp", "Không xác định"];
+const BEN_CHI_TRA = ["Tài xế", "Bảo hiểm", "Công ty", "Bên thứ 3"];
+const C = {
+  bg: "#071E20",
+  card: "#0B3335cc",
+  border: "#17666A55",
+  text: "#D5F5F6",
+  sub: "#57D6DC",
+  accent: "#2DCCD3",
+  red: "#ef4444",
+  blue: "#57D6DC",
+  yellow: "#FFCA00"
+};
+const genId = () => "SV-" + Date.now().toString().slice(-7);
+const today = () => new Date().toISOString().slice(0, 10);
+const nowTime = () => new Date().toTimeString().slice(0, 5);
+const fmtDate = s => s ? new Date(s).toLocaleDateString("vi-VN", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric"
+}) : "—";
+const fmtDT = s => s ? new Date(s).toLocaleString("vi-VN", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit"
+}) : "—";
+const fmtK = n => n ? (n / 1000000).toFixed(2).replace(/\.?0+$/, "") + "tr" : "0";
+const daysSince = d => d ? Math.floor((Date.now() - new Date(d)) / 86400000) : 0;
+const relTime = s => {
+  if (!s) return "";
+  const m = Math.floor((Date.now() - new Date(s)) / 60000);
+  return m < 1 ? "vừa xong" : m < 60 ? m + "ph" : m < 1440 ? Math.floor(m / 60) + "h" : Math.floor(m / 1440) + "ng";
+};
+
+// ── STEP BAR ──────────────────────────────────────────────────────────────────
+function StepBar({
+  loai,
+  buocHienTai,
+  onClick,
+  compact
+}) {
+  const buocs = getBuoc(loai);
+  const idx = buocs.findIndex(b => b.id === buocHienTai);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "flex-start"
+    }
+  }, buocs.map((b, i) => /*#__PURE__*/React.createElement("div", {
+    key: b.id,
+    style: {
+      display: "flex",
+      alignItems: "center",
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => onClick && onClick(b.id),
+    style: {
+      width: compact ? 20 : 24,
+      height: compact ? 20 : 24,
+      borderRadius: "50%",
+      fontSize: compact ? 9 : 10,
+      fontWeight: 700,
+      border: "none",
+      cursor: onClick ? "pointer" : "default",
+      transition: "all 0.2s",
+      background: i < idx ? b.mau : i === idx ? b.mau : "#17666A55",
+      color: i <= idx ? "#fff" : "#17666A",
+      opacity: i < idx ? 0.75 : 1,
+      boxShadow: i === idx ? `0 0 0 3px ${b.mau}44` : "none"
+    }
+  }, i < idx ? "✓" : i + 1), !compact && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 8,
+      color: i === idx ? b.mau : i < idx ? C.accent : C.sub,
+      marginTop: 3,
+      textAlign: "center",
+      lineHeight: 1.2
+    }
+  }, b.label)), i < buocs.length - 1 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 2,
+      flex: 1,
+      background: i < idx ? b.mau : C.border,
+      marginBottom: compact ? 0 : 16,
+      transition: "background 0.3s"
+    }
+  }))));
+}
+
+// ── TIMELINE CARD (dashboard) ─────────────────────────────────────────────────
+function TimelineCard({
+  sv,
+  onClick
+}) {
+  const buocs = getBuoc(sv.loai);
+  const loaiInfo = LOAI_SU_VU[sv.loai] || {label: sv.loai||"Sự vụ", icon:"📋", color:C.accent};
+  const buocObj = buocs.find(b => b.id === sv.buocHienTai) || buocs[0] || {};
+  const member = getMember(sv.to);
+  const days = daysSince(sv.ngayTao);
+  const urgColor = days > 7 ? C.red : days > 3 ? C.yellow : C.accent;
+  const lastLog = (sv.ghiChu || sv.nhatKy || []).slice(-1)[0];
+  const conNo = (sv.txTraTT || 0) - ((sv.daThuTXNH || 0) + (sv.daThuTXLuong || 0) + (sv.daThuTXCoc || 0));
+  return /*#__PURE__*/React.createElement("div", {
+    onClick: onClick,
+    style: {
+      background: C.card,
+      borderRadius: 12,
+      padding: 14,
+      marginBottom: 10,
+      border: `1px solid ${buocObj.mau || C.border}33`,
+      cursor: "pointer",
+      position: "relative",
+      overflow: "hidden"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      width: 3,
+      height: "100%",
+      background: buocObj.mau || C.border,
+      borderRadius: "12px 0 0 12px"
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      paddingLeft: 6
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 6,
+      marginBottom: 3
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      background: loaiInfo.color + "22",
+      color: loaiInfo.color,
+      fontSize: 10,
+      fontWeight: 700,
+      padding: "2px 7px",
+      borderRadius: 10,
+      border: `1px solid ${loaiInfo.color}44`
+    }
+  }, loaiInfo.icon, " ", loaiInfo.label)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 15,
+      fontWeight: 700,
+      color: "#FFFFFF"
+    }
+  }, sv.bienSo || sv.taiXe || "—"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: C.sub
+    }
+  }, sv.taiXe || sv.tenTX, " ", sv.loaiXe ? `· ${sv.loaiXe}` : "")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-end",
+      gap: 4
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      color: buocObj.mau
+    }
+  }, buocObj.label), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      color: urgColor,
+      fontWeight: 700
+    }
+  }, "\u23F1 ", days, "ng"), conNo > 0 && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 9,
+      color: C.red,
+      fontWeight: 700
+    }
+  }, "\uD83D\uDCB8 ", fmtK(conNo)))), /*#__PURE__*/React.createElement(StepBar, {
+    loai: sv.loai,
+    buocHienTai: sv.buocHienTai,
+    compact: true
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 10,
+      margin: "6px 0",
+      flexWrap: "wrap"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      color: C.sub
+    }
+  }, "\uD83D\uDCC5 ", fmtDate(sv.ngayTao), " ", sv.thoiGian || ""), sv.ngayDuKienXong && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      color: C.yellow
+    }
+  }, "\uD83C\uDFAF ", fmtDate(sv.ngayDuKienXong)), sv.ngaySuaXong && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      color: C.accent
+    }
+  }, "\u2705 ", fmtDate(sv.ngaySuaXong))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginTop: 4
+    }
+  }, member ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 5
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 18,
+      height: 18,
+      borderRadius: "50%",
+      background: member.mau + "33",
+      border: `1px solid ${member.mau}`,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: 10
+    }
+  }, "\uD83D\uDC64"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: member.mau,
+      fontWeight: 600
+    }
+  }, member.ten)) : /*#__PURE__*/React.createElement("span", null), lastLog && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      color: C.sub
+    }
+  }, relTime(lastLog.time))), lastLog && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: C.sub,
+      marginTop: 4,
+      fontStyle: "italic",
+      lineHeight: 1.4
+    }
+  }, (lastLog.noi || "").slice(0, 80), (lastLog.noi || "").length > 80 ? "..." : "")));
+}
+
+// ── FORM TX BÁO HIỆN TRƯỜNG ───────────────────────────────────────────────────
+function TXForm({
+  onSave,
+  onClose
+}) {
+  const [f, setF] = useState({
+    bienSo: "",
+    taiXe: "",
+    to: "OCP.DOIXE07.01",
+    ngayTao: today(),
+    thoiGian: nowTime(),
+    viTri: "",
+    moTa: "",
+    huHong: "",
+    nguoiBiThuong: false,
+    nhomLoi: "Chủ quan"
+  });
+  const set = (k, v) => setF(p => ({
+    ...p,
+    [k]: v
+  }));
+  const getGPS = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(p => set("viTri", `${p.coords.latitude.toFixed(5)}, ${p.coords.longitude.toFixed(5)}`));
+    }
+  };
+  const inp = (label, key, type = "text", opts = null) => /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: C.sub,
+      marginBottom: 3
+    }
+  }, label), opts ? /*#__PURE__*/React.createElement("select", {
+    value: f[key],
+    onChange: e => set(key, e.target.value),
+    style: {
+      width: "100%",
+      background: C.card,
+      border: `1px solid ${C.border}`,
+      borderRadius: 8,
+      color: C.text,
+      padding: "9px 10px",
+      fontSize: 13,
+      outline: "none",
+      fontFamily: "inherit"
+    }
+  }, opts.map(o => /*#__PURE__*/React.createElement("option", {
+    key: o
+  }, o))) : /*#__PURE__*/React.createElement("input", {
+    type: type,
+    value: f[key],
+    onChange: e => set(key, e.target.value),
+    style: {
+      width: "100%",
+      background: C.card,
+      border: `1px solid ${C.border}`,
+      borderRadius: 8,
+      color: C.text,
+      padding: "9px 10px",
+      fontSize: 13,
+      outline: "none",
+      boxSizing: "border-box",
+      fontFamily: "inherit"
+    }
+  }));
+
+  const handleSave = () => {
+    if (!f.bienSo || !f.taiXe) {
+      alert("Nhập biển số và tên tài xế");
+      return;
+    }
+    const sv = {
+      id: genId(),
+      loai: "VCTN",
+      ...f,
+      buocHienTai: "hien_truong",
+      trangThai: "moi",
+      nguoiTao: "TX_" + f.taiXe,
+      ghiChu: [{
+        time: new Date().toISOString(),
+        noi: `🚨 TX báo VCTN: ${f.viTri || f.moTa || "Đang tại hiện trường"}`,
+        nguoi: f.taiXe
+      }]
+    };
+    onSave(sv);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,0.9)",
+      zIndex: 200,
+      display: "flex",
+      alignItems: "flex-end",
+      justifyContent: "center"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#071E20",
+      borderRadius: "20px 20px 0 0",
+      width: "100%",
+      maxWidth: 740,
+      maxHeight: "90vh",
+      overflowY: "auto",
+      border: "1px solid #ef444433"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#ef444415",
+      borderBottom: "1px solid #ef444433",
+      padding: "14px 18px",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center"
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 16,
+      fontWeight: 700,
+      color: "#fca5a5"
+    }
+  }, "\uD83D\uDEA8 B\xC1O VCTN T\u1EA0I HI\u1EC6N TR\u01AF\u1EDCNG"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: "#57D6DC"
+    }
+  }, "T\xE0i x\u1EBF t\u1EF1 b\xE1o \xB7 GSVH s\u1EBD x\u1EED l\xFD ngay")), /*#__PURE__*/React.createElement("button", {
+    onClick: onClose,
+    style: {
+      background: "#17666A55",
+      border: "none",
+      color: C.sub,
+      borderRadius: 8,
+      padding: "6px 12px",
+      cursor: "pointer",
+      fontSize: 13
+    }
+  }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", null, inp("Biển số xe *", "bienSo")), /*#__PURE__*/React.createElement("div", null, inp("Tên tài xế *", "taiXe"))), inp("Tổ", "to", "text", TO_LIST), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", null, inp("Ngày", "ngayTao", "date")), /*#__PURE__*/React.createElement("div", null, inp("Giờ", "thoiGian", "time"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: C.sub,
+      marginBottom: 3
+    }
+  }, "\u0110\u1ECBa \u0111i\u1EC3m"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    value: f.viTri,
+    onChange: e => set("viTri", e.target.value),
+    placeholder: "Nh\u1EADp ho\u1EB7c l\u1EA5y GPS...",
+    style: {
+      flex: 1,
+      background: C.card,
+      border: `1px solid ${C.border}`,
+      borderRadius: 8,
+      color: C.text,
+      padding: "9px 10px",
+      fontSize: 13,
+      outline: "none",
+      fontFamily: "inherit"
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: getGPS,
+    style: {
+      background: "#17666A",
+      color: "#fff",
+      border: "none",
+      borderRadius: 8,
+      padding: "0 12px",
+      cursor: "pointer",
+      fontSize: 12,
+      whiteSpace: "nowrap"
+    }
+  }, "\uD83D\uDCCD GPS"))), inp("Nhóm lỗi", "nhomLoi", "text", NHOM_LOI), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: C.sub,
+      marginBottom: 3
+    }
+  }, "M\xF4 t\u1EA3 nguy\xEAn nh\xE2n"), /*#__PURE__*/React.createElement("textarea", {
+    value: f.moTa,
+    onChange: e => set("moTa", e.target.value),
+    rows: 2,
+    style: {
+      width: "100%",
+      background: C.card,
+      border: `1px solid ${C.border}`,
+      borderRadius: 8,
+      color: C.text,
+      padding: "9px 10px",
+      fontSize: 13,
+      outline: "none",
+      resize: "none",
+      boxSizing: "border-box",
+      fontFamily: "inherit"
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: C.sub,
+      marginBottom: 3
+    }
+  }, "H\u01B0 h\u1ECFng xe"), /*#__PURE__*/React.createElement("textarea", {
+    value: f.huHong,
+    onChange: e => set("huHong", e.target.value),
+    rows: 2,
+    style: {
+      width: "100%",
+      background: C.card,
+      border: `1px solid ${C.border}`,
+      borderRadius: 8,
+      color: C.text,
+      padding: "9px 10px",
+      fontSize: 13,
+      outline: "none",
+      resize: "none",
+      boxSizing: "border-box",
+      fontFamily: "inherit"
+    }
+  })), /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      cursor: "pointer",
+      marginBottom: 12,
+      padding: "10px 12px",
+      background: "rgba(239,68,68,0.1)",
+      borderRadius: 8,
+      border: "1px solid #ef444433"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: f.nguoiBiThuong,
+    onChange: e => set("nguoiBiThuong", e.target.checked),
+    style: {
+      width: 16,
+      height: 16,
+      accentColor: C.red
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: "#fca5a5",
+      fontWeight: 600
+    }
+  }, "\u26A0\uFE0F C\xF3 ng\u01B0\u1EDDi b\u1ECB th\u01B0\u01A1ng / n\u1EA1n nh\xE2n")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: C.card,
+      borderRadius: 10,
+      padding: 12,
+      marginBottom: 12,
+      border: `1px solid ${C.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      color: C.sub,
+      marginBottom: 8,
+      letterSpacing: 0.5
+    }
+  }, "\uD83D\uDCDE LI\xCAN H\u1EC6 GSVH NGAY"), TEAM.slice(1).map(m => /*#__PURE__*/React.createElement("div", {
+    key: m.ten,
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: m.mau
+    }
+  }, m.ten, " (", m.chuc, ")"), /*#__PURE__*/React.createElement("a", {
+    href: `tel:${m.sdt}`,
+    style: {
+      fontSize: 13,
+      fontWeight: 700,
+      color: C.accent,
+      textDecoration: "none"
+    }
+  }, "\uD83D\uDCF1 ", m.sdt)))), /*#__PURE__*/React.createElement("button", {
+    onClick: handleSave,
+    style: {
+      width: "100%",
+      background: "#dc2626",
+      color: "#fff",
+      border: "none",
+      borderRadius: 12,
+      padding: 14,
+      fontSize: 15,
+      fontWeight: 700,
+      cursor: "pointer",
+      fontFamily: "inherit"
+    }
+  }, "\uD83D\uDEA8 G\u1EEDi b\xE1o c\xE1o cho GSVH"))));
+}
+
+// ── FORM INPUT - local state + onBlur, tránh re-render mất focus mobile ───────
+const FIS = {
+  width: "100%",
+  background: "#071E20",
+  border: "1px solid #1e293b",
+  borderRadius: 8,
+  color: "#D5F5F6",
+  padding: "8px 10px",
+  fontSize: 13,
+  outline: "none",
+  fontFamily: "inherit",
+  boxSizing: "border-box"
+};
+function FormInp({
+  label,
+  v,
+  on,
+  type = "text",
+  opts = null
+}) {
+  const [local, setLocal] = useState(v ?? "");
+  useEffect(() => {
+    setLocal(v ?? "");
+  }, [v]);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 9
+    }
+  }, label && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: "#57D6DC",
+      marginBottom: 3,
+      textTransform: "uppercase",
+      letterSpacing: 0.4
+    }
+  }, label), opts ? /*#__PURE__*/React.createElement("select", {
+    value: local,
+    onChange: e => {
+      setLocal(e.target.value);
+      on(e.target.value);
+    },
+    style: FIS
+  }, opts.map(o => /*#__PURE__*/React.createElement("option", {
+    key: o
+  }, o))) : type === "textarea" ? /*#__PURE__*/React.createElement("textarea", {
+    value: local,
+    rows: 2,
+    style: {
+      ...FIS,
+      resize: "none"
+    },
+    onChange: e => setLocal(e.target.value),
+    onBlur: e => on(e.target.value)
+  }) : /*#__PURE__*/React.createElement("input", {
+    type: type,
+    value: local,
+    style: FIS,
+    onChange: e => setLocal(e.target.value),
+    onBlur: e => on(type === "number" ? Number(e.target.value) : e.target.value)
+  }));
+}
+
+// ── FORM GSVH (3 tab) ─────────────────────────────────────────────────────────
+function FormGSVH({
+  sv,
+  onSave,
+  onClose
+}) {
+  const isEdit = !!sv?.id;
+  const [loai, setLoai] = useState(sv?.loai || "VCTN");
+  const [tab, setTab] = useState(0);
+
+  const [f, setF] = useState(sv ? {
+    ...sv
+  } : {
+    bienSo: "",
+    loaiXe: "VFE34",
+    soKhung: "",
+    to: "OCP.DOIXE07.01",
+    maTX: "",
+    taiXe: "",
+    tenTX: "",
+    ttLV: "Hoạt động",
+    ttHD: "Ký HĐ lao động chính thức",
+    ngayTao: today(),
+    thoiGian: nowTime(),
+    diaDiem: "",
+    viTri: "",
+    moTa: "",
+    nhomLoi: "Chủ quan",
+    huHong: "",
+    nguoiBiThuong: false,
+    cqcaGiu: false,
+    tenCQCA: "",
+    coBH: true,
+    bhDV: "",
+    phamViBH: "Xe gồm pin",
+    cvBH: "",
+    ngayBaoBH: "",
+    gioBaoBH: "",
+    benChiTra: [],
+    soHD: "",
+    ngayHD: "",
+    xuong: "",
+    dauMoiXuong: "",
+    ngayVaoXuong: "",
+    gioVaoXuong: "",
+    ngayDuKienXong: "",
+    ngaySuaXong: "",
+    gioSuaXong: "",
+    ttSC: "Chờ báo giá",
+    tongTT: 0,
+    bhTraTT: 0,
+    txTraTT: 0,
+    ctTraTT: 0,
+    daThuTXNH: 0,
+    daThuTXLuong: 0,
+    daThuTXCoc: 0,
+    lyDo: "",
+    moTaKT: "",
+    tenKhach: "",
+    ghiChu: [],
+    nhatKy: [],
+    vanDoanhTamThoi: false,
+    xeVaoXuong: false,
+    xuongDuKien: "",
+    tenXuong: "",
+    nhomLoiXuong: "",
+    chiTietHuHong: "",
+    odoVaoXuong: 0,
+    ngayLayXe: "",
+    trangThaiTruoc: "",
+    trangThaiMoi: ""
+  });
+  const set = (k, v) => setF(p => ({
+    ...p,
+    [k]: v
+  }));
+  const G2 = ({
+    children
+  }) => /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 9
+    }
+  }, children);
+  const G3 = ({
+    children
+  }) => /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr 1fr",
+      gap: 8
+    }
+  }, children);
+
+
+  // Dropdown component - định nghĩa TRONG FormGSVH để có _vac
+
+  const toggleBen = ben => {
+    const a = f.benChiTra || [];
+    set("benChiTra", a.includes(ben) ? a.filter(b => b !== ben) : [...a, ben]);
+  };
+  const conLai = (f.txTraTT || 0) - ((f.daThuTXNH || 0) + (f.daThuTXLuong || 0) + (f.daThuTXCoc || 0));
+  const handleSave = () => {
+    const bienSoVal = f.bienSo || f.taiXe;
+    if (!bienSoVal) {
+      alert("Nhập biển số hoặc tên tài xế");
+      return;
+    }
+    const buocs = getBuoc(loai);
+    onSave({
+      ...f,
+      id: f.id || genId(),
+      loai,
+      buocHienTai: f.buocHienTai || buocs[0]?.id,
+      trangThai: f.trangThai || "dang_xu_ly",
+      ngayTao: f.ngayTao || today(),
+      ghiChu: f.ghiChu || [{
+        time: new Date().toISOString(),
+        noi: "Sự vụ được tạo",
+        nguoi: "GSVH"
+      }]
+    });
+  };
+  const TABS = loai === "VCTN" ? ["① Sự vụ", "② Xử lý", "③ Tài chính"] : ["Thông tin", "Ghi chú"];
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,0.8)",
+      zIndex: 100,
+      display: "flex",
+      alignItems: "flex-end",
+      justifyContent: "center"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: C.bg,
+      borderRadius: "20px 20px 0 0",
+      width: "100%",
+      maxWidth: 740,
+      maxHeight: "94vh",
+      display: "flex",
+      flexDirection: "column",
+      border: `1px solid ${C.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "13px 16px",
+      borderBottom: `1px solid ${C.border}`,
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 15,
+      fontWeight: 700,
+      color: "#FFFFFF"
+    }
+  }, isEdit ? "✏️ Cập nhật" : "➕ Tạo sự vụ"), /*#__PURE__*/React.createElement("button", {
+    onClick: onClose,
+    style: {
+      background: "#17666A55",
+      border: "none",
+      color: C.sub,
+      borderRadius: 8,
+      padding: "6px 12px",
+      cursor: "pointer",
+      fontSize: 13
+    }
+  }, "\u2715")), !isEdit && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "10px 14px",
+      borderBottom: `1px solid ${C.border}`,
+      display: "flex",
+      gap: 7,
+      flexWrap: "wrap",
+      flexShrink: 0
+    }
+  }, Object.entries(LOAI_SU_VU).map(([k, v]) => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    onClick: () => {
+      setLoai(k);
+      setTab(0);
+    },
+    style: {
+      padding: "5px 11px",
+      borderRadius: 18,
+      border: `1.5px solid ${loai === k ? v.color : C.border}`,
+      background: loai === k ? v.color + "22" : "transparent",
+      color: loai === k ? v.color : C.sub,
+      fontSize: 11,
+      fontWeight: 600,
+      cursor: "pointer",
+      fontFamily: "inherit"
+    }
+  }, v.icon, " ", v.label))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 4,
+      padding: "8px 14px 0",
+      flexShrink: 0,
+      borderBottom: `1px solid ${C.border}`
+    }
+  }, TABS.map((t, i) => /*#__PURE__*/React.createElement("button", {
+    key: i,
+    onClick: () => setTab(i),
+    style: {
+      padding: "6px 13px",
+      borderRadius: "8px 8px 0 0",
+      border: `1px solid ${tab === i ? C.accent : C.border}`,
+      borderBottom: "none",
+      background: tab === i ? "#063335" : C.bg,
+      color: tab === i ? C.accent : C.sub,
+      fontSize: 11,
+      fontWeight: tab === i ? 700 : 400,
+      cursor: "pointer",
+      fontFamily: "inherit"
+    }
+  }, t))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      overflowY: "auto",
+      padding: "12px 14px 0"
+    }
+  }, tab === 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      color: "#60a5fa",
+      fontSize: 10,
+      letterSpacing: 0.8,
+      marginBottom: 8
+    }
+  }, "\uD83D\uDE96 XE & T\xC0I X\u1EBE"), /*#__PURE__*/React.createElement(G2, null, /*#__PURE__*/React.createElement(FormInp, {
+    label: "Bi\u1EC3n s\u1ED1",
+    v: f.bienSo,
+    on: v => set("bienSo", v)
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label: "Lo\u1EA1i xe",
+    v: f.loaiXe,
+    on: v => set("loaiXe", v),
+    opts: ["VFE34", "VF5", "VFe34", "VF8"]
+  })), /*#__PURE__*/React.createElement(G2, null, /*#__PURE__*/React.createElement(FormInp, {
+    label: "S\u1ED1 khung",
+    v: f.soKhung,
+    on: v => set("soKhung", v)
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label: "T\u1ED5",
+    v: f.to,
+    on: v => set("to", v),
+    opts: TO_LIST
+  })), /*#__PURE__*/React.createElement(G2, null, /*#__PURE__*/React.createElement(FormInp, {
+    label: "M\xE3 t\xE0i x\u1EBF",
+    v: f.maTX,
+    on: v => set("maTX", v)
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label: "T\xEAn t\xE0i x\u1EBF",
+    v: f.taiXe,
+    on: v => set("taiXe", v)
+  })), /*#__PURE__*/React.createElement(G2, null, /*#__PURE__*/React.createElement(FormInp, {
+    label: "TT l\xE0m vi\u1EC7c",
+    v: f.ttLV,
+    on: v => set("ttLV", v),
+    opts: ["Hoạt động", "Nghỉ việc", "Đang thử việc"]
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label: "TT h\u1EE3p \u0111\u1ED3ng",
+    v: f.ttHD,
+    on: v => set("ttHD", v),
+    opts: ["Ký HĐ lao động chính thức", "Đang thử việc", "Không có HĐ"]
+  })), loai === "VCTN" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      color: "#f97316",
+      fontSize: 10,
+      letterSpacing: 0.8,
+      margin: "10px 0 8px"
+    }
+  }, "\uD83D\uDCCD HI\u1EC6N TR\u01AF\u1EDCNG"), /*#__PURE__*/React.createElement(G3, null, /*#__PURE__*/React.createElement(FormInp, {
+    label: "Ng\xE0y VCTN",
+    v: f.ngayTao,
+    on: v => set("ngayTao", v),
+    type: "date"
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label: "Gi\u1EDD",
+    v: f.thoiGian,
+    on: v => set("thoiGian", v),
+    type: "time"
+  }), /*#__PURE__*/React.createElement("div", null)), /*#__PURE__*/React.createElement(FormInp, {
+    label: "\u0110\u1ECBa \u0111i\u1EC3m",
+    v: f.diaDiem,
+    on: v => set("diaDiem", v)
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label: "Nguy\xEAn nh\xE2n",
+    v: f.moTa,
+    on: v => set("moTa", v),
+    type: "textarea"
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label: "Nh\xF3m l\u1ED7i",
+    v: f.nhomLoi,
+    on: v => set("nhomLoi", v),
+    opts: NHOM_LOI
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label: "H\u01B0 h\u1ECFng chi ti\u1EBFt",
+    v: f.huHong,
+    on: v => set("huHong", v),
+    type: "textarea"
+  }), /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      cursor: "pointer",
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: !!f.nguoiBiThuong,
+    onChange: e => set("nguoiBiThuong", e.target.checked),
+    style: {
+      width: 15,
+      height: 15,
+      accentColor: C.red
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: C.text
+    }
+  }, "\u26A0\uFE0F C\xF3 ng\u01B0\u1EDDi b\u1ECB th\u01B0\u01A1ng")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      color: "#a78bfa",
+      fontSize: 10,
+      letterSpacing: 0.8,
+      margin: "10px 0 8px"
+    }
+  }, "\uD83D\uDE94 C\xD4NG AN"), /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      cursor: "pointer",
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: !!f.cqcaGiu,
+    onChange: e => set("cqcaGiu", e.target.checked),
+    style: {
+      width: 15,
+      height: 15,
+      accentColor: "#8b5cf6"
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: C.text
+    }
+  }, "\uD83D\uDE94 Xe b\u1ECB CQCA t\u1EA1m gi\u1EEF")), f.cqcaGiu && /*#__PURE__*/React.createElement(FormInp, {
+    label: "C\u01A1 quan CA gi\u1EEF xe",
+    v: f.tenCQCA,
+    on: v => set("tenCQCA", v)
+  }), /*#__PURE__*/React.createElement("label", {
+    style:{display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginBottom:8,padding:"9px 11px",background:"rgba(45,204,211,0.08)",borderRadius:8,border:"1px solid #2DCCD333"}
+  }, /*#__PURE__*/React.createElement("input", {
+    type:"checkbox",checked:!!f.vanDoanhTamThoi,
+    onChange:function(e){set("vanDoanhTamThoi",e.target.checked);if(e.target.checked)set("xeVaoXuong",false);},
+    style:{width:15,height:15,accentColor:"#2DCCD3"}
+  }), /*#__PURE__*/React.createElement("span", {style:{fontSize:13,color:C.text}}, "\uD83D\uDFE2 Xe v\u1EABn v\u1EADn doanh t\u1EA1m th\u1EDDi")), /*#__PURE__*/React.createElement("label", {
+    style:{display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginBottom:8,padding:"9px 11px",background:"rgba(255,140,66,0.08)",borderRadius:8,border:"1px solid #FF8C4233"}
+  }, /*#__PURE__*/React.createElement("input", {
+    type:"checkbox",checked:!!f.xeVaoXuong,
+    onChange:function(e){set("xeVaoXuong",e.target.checked);if(e.target.checked)set("vanDoanhTamThoi",false);},
+    style:{width:15,height:15,accentColor:"#FF8C42"}
+  }), /*#__PURE__*/React.createElement("span", {style:{fontSize:13,color:C.text}}, "\uD83D\uDD28 Xe c\u1EA7n v\xE0o x\u01B0\u1EDFng sau VCTN")), f.xeVaoXuong && /*#__PURE__*/React.createElement(FormInp, {
+    label:"X\u01B0\u1EDFng d\u1EF1 ki\u1EBFn",v:f.xuongDuKien,on:function(v){set("xuongDuKien",v);},opts:[""].concat(XUONG_LIST)
+  })), loai === "KY_THUAT" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(G3, null, /*#__PURE__*/React.createElement(FormInp, {
+    label: "Ng\xE0y",
+    v: f.ngayTao,
+    on: v => set("ngayTao", v),
+    type: "date"
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label: "Gi\u1EDD",
+    v: f.thoiGian,
+    on: v => set("thoiGian", v),
+    type: "time"
+  }), /*#__PURE__*/React.createElement("div", null)), /*#__PURE__*/React.createElement(FormInp, {
+    label: "M\xF4 t\u1EA3 l\u1ED7i k\u1EF9 thu\u1EADt",
+    v: f.moTaKT,
+    on: v => set("moTaKT", v),
+    type: "textarea"
+  }), /*#__PURE__*/React.createElement(G2, null, /*#__PURE__*/React.createElement(FormInp, {
+    label: "X\u01B0\u1EDFng",
+    v: f.xuong,
+    on: v => set("xuong", v),
+    opts: ["", ...XUONG_LIST]
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label: "\u0110\u1EA7u m\u1ED1i x\u01B0\u1EDFng",
+    v: f.dauMoiXuong,
+    on: v => set("dauMoiXuong", v)
+  }))), (loai === "KHACH_HANG" || loai === "NGHI_VIEC" || loai === "XUONG_CA") && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(G3, null, /*#__PURE__*/React.createElement(FormInp, {
+    label: "Ng\xE0y",
+    v: f.ngayTao,
+    on: v => set("ngayTao", v),
+    type: "date"
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label: "Gi\u1EDD",
+    v: f.thoiGian,
+    on: v => set("thoiGian", v),
+    type: "time"
+  }), /*#__PURE__*/React.createElement("div", null)), loai === "KHACH_HANG" && /*#__PURE__*/React.createElement(FormInp, {
+    label: "T\xEAn kh\xE1ch h\xE0ng",
+    v: f.tenKhach,
+    on: v => set("tenKhach", v)
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label: "M\xF4 t\u1EA3 / L\xFD do",
+    k: "lyDo",
+    type: "textarea"
+  }))), loai === "XE_XUONG" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style:{display:"flex",alignItems:"center",gap:8,padding:"8px 11px",background:"rgba(255,140,66,0.1)",borderRadius:8,border:"1px solid #FF8C4244",marginBottom:10}
+  }, /*#__PURE__*/React.createElement("span", {style:{fontSize:12,fontWeight:700,color:"#86efac"}}, "\uD83D\uDFE2 V\u1EADn doanh"), /*#__PURE__*/React.createElement("span", {style:{color:"#FF8C42",fontWeight:900,fontSize:14}}, "\u2192"), /*#__PURE__*/React.createElement("span", {style:{fontSize:12,fontWeight:700,color:"#fdba74"}}, "\uD83D\uDFE0 XeVctn (t\u1EA1m th\u1EDDi)")), /*#__PURE__*/React.createElement(G3, null, /*#__PURE__*/React.createElement(FormInp, {
+    label:"Ng\xE0y v\xE0o",v:f.ngayTao,on:v=>set("ngayTao",v),type:"date"
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label:"Gi\u1EDD v\xE0o",v:f.thoiGian,on:v=>set("thoiGian",v),type:"time"
+  }), /*#__PURE__*/React.createElement("div", null)), /*#__PURE__*/React.createElement(FormInp, {
+    label:"T\xEAn x\u01B0\u1EDFng *",v:f.tenXuong,on:v=>set("tenXuong",v),opts:["","Xưởng Depot Hà Nội 1",...XUONG_LIST,"Xưởng khác"]
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label:"Nh\xF3m l\u1ED7i *",v:f.nhomLoiXuong,on:v=>set("nhomLoiXuong",v),opts:["","VCTN_PIN — Lỗi pin / sạc","VCTN_TV — Tai nạn thân vỏ","VCTN_HH — Hư hỏng nặng","CSC_TV — Xước / tân trang","BAO_DUONG — Bảo dưỡng định kỳ","LOI_KT — Lỗi kỹ thuật khác"]
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label:"Chi ti\u1EBFt h\u01B0 h\u1ECFng / c\xF4ng vi\u1EC7c",v:f.chiTietHuHong,on:v=>set("chiTietHuHong",v),type:"textarea"
+  }), /*#__PURE__*/React.createElement(G2, null, /*#__PURE__*/React.createElement(FormInp, {
+    label:"ODO v\xE0o x\u01B0\u1EDFng (km)",v:f.odoVaoXuong,on:v=>set("odoVaoXuong",v),type:"number"
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label:"Ng\xE0y DK l\u1EA5y xe",v:f.ngayLayXe,on:v=>set("ngayLayXe",v),type:"date"
+  })), /*#__PURE__*/React.createElement(FormInp, {
+    label:"\u0110\u1EA7u m\u1ED1i t\u1EA1i x\u01B0\u1EDFng",v:f.dauMoiXuong,on:v=>set("dauMoiXuong",v)
+  })), tab === 1 && loai === "VCTN" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      color: "#22d3ee",
+      fontSize: 10,
+      letterSpacing: 0.8,
+      marginBottom: 8
+    }
+  }, "\uD83D\uDEE1\uFE0F B\u1EA2O HI\u1EC2M"), /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      cursor: "pointer",
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: !!f.coBH,
+    onChange: e => set("coBH", e.target.checked),
+    style: {
+      width: 15,
+      height: 15,
+      accentColor: C.accent
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: C.text
+    }
+  }, "Xe c\xF3 b\u1EA3o hi\u1EC3m v\u1EADt ch\u1EA5t")), f.coBH && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(G2, null, /*#__PURE__*/React.createElement(FormInp, {
+    label: "\u0110\u01A1n v\u1ECB BH",
+    v: f.bhDV,
+    on: v => set("bhDV", v),
+    opts: ["", ...BH_LIST]
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label: "Ph\u1EA1m vi BH",
+    v: f.phamViBH,
+    on: v => set("phamViBH", v),
+    opts: PHAM_VI_BH
+  })), /*#__PURE__*/React.createElement(FormInp, {
+    label: "CV b\u1EA3o hi\u1EC3m (t\xEAn + S\u0110T)",
+    v: f.cvBH,
+    on: v => set("cvBH", v)
+  }), /*#__PURE__*/React.createElement(G3, null, /*#__PURE__*/React.createElement(FormInp, {
+    label: "Ng\xE0y b\xE1o BH",
+    v: f.ngayBaoBH,
+    on: v => set("ngayBaoBH", v),
+    type: "date"
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label: "Gi\u1EDD b\xE1o",
+    v: f.gioBaoBH,
+    on: v => set("gioBaoBH", v),
+    type: "time"
+  }), /*#__PURE__*/React.createElement("div", null)), /*#__PURE__*/React.createElement(G2, null, /*#__PURE__*/React.createElement(FormInp, {
+    label: "S\u1ED1 h\xF3a \u0111\u01A1n",
+    v: f.soHD,
+    on: v => set("soHD", v)
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label: "Ng\xE0y h\xF3a \u0111\u01A1n",
+    v: f.ngayHD,
+    on: v => set("ngayHD", v),
+    type: "date"
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 9
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: C.sub,
+      marginBottom: 6,
+      textTransform: "uppercase",
+      letterSpacing: 0.4
+    }
+  }, "C\xE1c b\xEAn chi tr\u1EA3"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 6,
+      flexWrap: "wrap"
+    }
+  }, BEN_CHI_TRA.map(b => /*#__PURE__*/React.createElement("button", {
+    key: b,
+    onClick: () => toggleBen(b),
+    style: {
+      padding: "5px 10px",
+      borderRadius: 14,
+      border: `1px solid ${(f.benChiTra || []).includes(b) ? C.accent : C.border}`,
+      background: (f.benChiTra || []).includes(b) ? "#2DCCD322" : "transparent",
+      color: (f.benChiTra || []).includes(b) ? C.accent : C.sub,
+      fontSize: 11,
+      cursor: "pointer",
+      fontFamily: "inherit"
+    }
+  }, b)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      color: "#fb923c",
+      fontSize: 10,
+      letterSpacing: 0.8,
+      margin: "10px 0 8px"
+    }
+  }, "\uD83D\uDD27 X\u01AF\u1EDENG D\u1ECACH V\u1EE4"), /*#__PURE__*/React.createElement(FormInp, {
+    label: "X\u01B0\u1EDFng ti\u1EBFp nh\u1EADn",
+    v: f.xuong,
+    on: v => set("xuong", v),
+    opts: ["", ...XUONG_LIST]
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label: "\u0110\u1EA7u m\u1ED1i t\u1EA1i x\u01B0\u1EDFng (t\xEAn + S\u0110T)",
+    v: f.dauMoiXuong,
+    on: v => set("dauMoiXuong", v)
+  }), /*#__PURE__*/React.createElement(G3, null, /*#__PURE__*/React.createElement(FormInp, {
+    label: "Ng\xE0y v\xE0o x\u01B0\u1EDFng",
+    v: f.ngayVaoXuong,
+    on: v => set("ngayVaoXuong", v),
+    type: "date"
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label: "Gi\u1EDD v\xE0o",
+    v: f.gioVaoXuong,
+    on: v => set("gioVaoXuong", v),
+    type: "time"
+  }), /*#__PURE__*/React.createElement("div", null)), /*#__PURE__*/React.createElement(G3, null, /*#__PURE__*/React.createElement(FormInp, {
+    label: "Ng\xE0y DK xong",
+    v: f.ngayDuKienXong,
+    on: v => set("ngayDuKienXong", v),
+    type: "date"
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label: "Ng\xE0y xong TT",
+    v: f.ngaySuaXong,
+    on: v => set("ngaySuaXong", v),
+    type: "date"
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label: "Gi\u1EDD xu\u1EA5t",
+    v: f.gioSuaXong,
+    on: v => set("gioSuaXong", v),
+    type: "time"
+  })), /*#__PURE__*/React.createElement(FormInp, {
+    label: "Tr\u1EA1ng th\xE1i SC",
+    v: f.ttSC,
+    on: v => set("ttSC", v),
+    opts: ["Chờ báo giá", "Đang SC", "Đang SC - Không có BHTV", "Đã sửa xong", "Chờ xuất xưởng"]
+  })), tab === 2 && loai === "VCTN" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      color: C.accent,
+      fontSize: 10,
+      letterSpacing: 0.8,
+      marginBottom: 8
+    }
+  }, "\uD83D\uDCB0 CHI PH\xCD TH\u1EF0C T\u1EBE (VN\u0110)"), /*#__PURE__*/React.createElement(G2, null, /*#__PURE__*/React.createElement(FormInp, {
+    label: "T\u1ED5ng SC th\u1EF1c t\u1EBF",
+    v: f.tongTT,
+    on: v => set("tongTT", v),
+    type: "number"
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label: "BH tr\u1EA3",
+    v: f.bhTraTT,
+    on: v => set("bhTraTT", v),
+    type: "number"
+  })), /*#__PURE__*/React.createElement(G2, null, /*#__PURE__*/React.createElement(FormInp, {
+    label: "TX tr\u1EA3",
+    v: f.txTraTT,
+    on: v => set("txTraTT", v),
+    type: "number"
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label: "CT tr\u1EA3",
+    v: f.ctTraTT,
+    on: v => set("ctTraTT", v),
+    type: "number"
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      color: C.red,
+      fontSize: 10,
+      letterSpacing: 0.8,
+      margin: "10px 0 8px"
+    }
+  }, "\uD83D\uDCB3 THU C\xD4NG N\u1EE2 T\xC0I X\u1EBE"), /*#__PURE__*/React.createElement(G2, null, /*#__PURE__*/React.createElement(FormInp, {
+    label: "TX tr\u1EA3 qua ng\xE2n h\xE0ng",
+    v: f.daThuTXNH,
+    on: v => set("daThuTXNH", v),
+    type: "number"
+  }), /*#__PURE__*/React.createElement(FormInp, {
+    label: "TX tr\u1EA3 qua l\u01B0\u01A1ng",
+    v: f.daThuTXLuong,
+    on: v => set("daThuTXLuong", v),
+    type: "number"
+  })), /*#__PURE__*/React.createElement(FormInp, {
+    label: "TX tr\u1EA3 qua c\u1ECDc",
+    v: f.daThuTXCoc,
+    on: v => set("daThuTXCoc", v),
+    type: "number"
+  }), (f.txTraTT || 0) > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: conLai > 0 ? "rgba(239,68,68,0.1)" : "#063335",
+      border: `1px solid ${conLai > 0 ? C.red : C.accent}44`,
+      borderRadius: 8,
+      padding: "10px 12px",
+      marginTop: 6
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: C.sub
+    }
+  }, "C\xF2n ph\u1EA3i thu t\u1EEB t\xE0i x\u1EBF"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 800,
+      color: conLai > 0 ? C.red : C.accent
+    }
+  }, fmtK(conLai)))), tab === 1 && loai !== "VCTN" && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: C.sub,
+      marginBottom: 6
+    }
+  }, "Ghi ch\xFA th\xEAm"), /*#__PURE__*/React.createElement("textarea", {
+    value: f.lyDo || "",
+    onChange: e => set("lyDo", e.target.value),
+    rows: 4,
+    style: {
+      width: "100%",
+      background: C.bg,
+      border: `1px solid ${C.border}`,
+      borderRadius: 8,
+      color: C.text,
+      padding: "9px 10px",
+      fontSize: 13,
+      outline: "none",
+      resize: "none",
+      boxSizing: "border-box",
+      fontFamily: "inherit"
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 16
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "10px 14px 18px",
+      display: "flex",
+      gap: 10,
+      flexShrink: 0,
+      borderTop: `1px solid ${C.border}`
+    }
+  }, tab > 0 && /*#__PURE__*/React.createElement("button", {
+    onClick: () => setTab(p => p - 1),
+    style: {
+      background: "#17666A55",
+      color: C.sub,
+      border: "none",
+      borderRadius: 10,
+      padding: "11px 16px",
+      cursor: "pointer",
+      fontFamily: "inherit"
+    }
+  }, "\u2190 Tr\u01B0\u1EDBc"), tab < TABS.length - 1 && /*#__PURE__*/React.createElement("button", {
+    onClick: () => setTab(p => p + 1),
+    style: {
+      flex: 1,
+      background: "#17666A",
+      color: "#fff",
+      border: "none",
+      borderRadius: 10,
+      padding: 11,
+      fontSize: 14,
+      fontWeight: 700,
+      cursor: "pointer",
+      fontFamily: "inherit"
+    }
+  }, "Ti\u1EBFp \u2192"), /*#__PURE__*/React.createElement("button", {
+    onClick: handleSave,
+    style: {
+      flex: tab === TABS.length - 1 ? 1 : 0,
+      background: "#2DCCD3",
+      color: "#fff",
+      border: "none",
+      borderRadius: 10,
+      padding: "11px 20px",
+      fontSize: 14,
+      fontWeight: 700,
+      cursor: "pointer",
+      fontFamily: "inherit"
+    }
+  }, "\uD83D\uDCBE L\u01B0u"))));
+}
+
+// ── CHI TIẾT ─────────────────────────────────────────────────────────────────
+function CopyNghiBtn({sv, member}) {
+  const [copied, setCopied] = React.useState(false);
+  const doCopy = () => {
+    const soNgay = sv.ngayTao && sv.ngayDuKienXong
+      ? Math.ceil((new Date(sv.ngayDuKienXong) - new Date(sv.ngayTao)) / 86400000)
+      : null;
+    const lines = [
+      `📢 ĐĂNG KÝ NGHỈ PHÉP OCP07`,
+      ``,
+      ` 👤 Tài xế: ${sv.taiXe || sv.tenTX || "—"}${sv.maNV ? " – Mã NV: " + sv.maNV : ""}`,
+      ` 🚗 Biển số xe: ${sv.bienSo || "—"}`,
+      ` 👤 Tổ: ${sv.to || "—"}${member && member.ten ? " · GS: " + member.ten + " – " + (member.sdt||"") : ""}`,
+      ` 🕐 Ngày báo: ${sv.ngayTao ? fmtDate(sv.ngayTao) : "—"}${sv.thoiGian ? " " + sv.thoiGian : ""}`,
+      ` 🔎 Lý do nghỉ: ${sv.lyDo || "—"}`,
+      sv.ngayDuKienXong ? ` 📅 Ngày quay lại: ${fmtDate(sv.ngayDuKienXong)}${soNgay ? " (" + soNgay + " ngày)" : ""}` : null,
+      ` 📊 Trạng thái: ${(getBuoc("NGHI_VIEC").find(b=>b.id===sv.buocHienTai)||{}).label || "—"}`,
+      sv.moTa ? ` 📝 Ghi chú: ${sv.moTa}` : null,
+      ``,
+      `━━━━━━━━━━━━━━━━━━━━━━`,
+      `📍 OCP.DOIXE07 · Depot Hà Nội 1`,
+    ].filter(l => l !== null).join("\n");
+    navigator.clipboard.writeText(lines).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }).catch(() => {});
+  };
+  return /*#__PURE__*/React.createElement("button", {
+    onClick: doCopy,
+    style: {
+      width: "100%",
+      padding: "12px",
+      background: copied ? "#17666A" : "rgba(87,214,220,0.1)",
+      border: `2px solid ${copied ? "#2DCCD3" : "#57D6DC44"}`,
+      borderRadius: 12,
+      color: copied ? "#2DCCD3" : "#57D6DC",
+      fontSize: 14,
+      fontWeight: 800,
+      cursor: "pointer",
+      fontFamily: "inherit",
+      marginBottom: 12,
+      transition: "all .2s",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+    }
+  }, copied ? "✅ Đã copy! Paste vào Zalo nhóm" : "📋 Copy đăng ký nghỉ → Zalo");
+}
+
+function ChiTiet({
+  sv,
+  onClose,
+  onUpdate,
+  onEdit
+}) {
+  const [note, setNote] = useState("");
+  const [copiedSV, setCopiedSV] = useState(false);
+  const copySV = () => {
+    const txt = genSuVuText(sv);
+    navigator.clipboard.writeText(txt).then(()=>{setCopiedSV(true);setTimeout(()=>setCopiedSV(false),2500);}).catch(()=>{});
+  };
+  const buocs = getBuoc(sv.loai);
+  const logs = sv.ghiChu || sv.nhatKy || [];
+  const idx = buocs.findIndex(b => b.id === sv.buocHienTai);
+  const member = getMember(sv.to);
+  const conNo = (sv.txTraTT || 0) - ((sv.daThuTXNH || 0) + (sv.daThuTXLuong || 0) + (sv.daThuTXCoc || 0));
+  const addNote = () => {
+    if (!note.trim()) return;
+    const newLog = {
+      time: new Date().toISOString(),
+      noi: note,
+      nguoi: "GSVH"
+    };
+    onUpdate({
+      ...sv,
+      ghiChu: [...logs, newLog]
+    });
+    setNote("");
+  };
+  const chuyenBuoc = bid => {
+    const isLast = bid === "dong";
+    const newLog = {
+      time: new Date().toISOString(),
+      noi: `➡️ Chuyển: ${buocs.find(b => b.id === bid)?.label}`,
+      nguoi: "Hệ thống"
+    };
+    onUpdate({
+      ...sv,
+      buocHienTai: bid,
+      trangThai: isLast ? "hoan_thanh" : "dang_xu_ly",
+      ghiChu: [...logs, newLog]
+    });
+  };
+  const R = ({
+    label,
+    val,
+    color
+  }) => val ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      marginBottom: 7,
+      alignItems: "flex-start"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      color: C.sub,
+      minWidth: 130,
+      flexShrink: 0,
+      paddingTop: 2
+    }
+  }, label), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: color || C.text,
+      flex: 1
+    }
+  }, val)) : null;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,0.8)",
+      zIndex: 50,
+      display: "flex",
+      alignItems: "flex-end",
+      justifyContent: "center"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: C.bg,
+      borderRadius: "20px 20px 0 0",
+      width: "100%",
+      maxWidth: 740,
+      maxHeight: "92vh",
+      overflowY: "auto",
+      border: `1px solid ${C.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "14px 18px",
+      borderBottom: `1px solid ${C.border}`,
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      position: "sticky",
+      top: 0,
+      background: C.bg,
+      zIndex: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: C.sub
+    }
+  }, sv.id, " \xB7 ", fmtDate(sv.ngayTao), " ", sv.thoiGian || ""), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 16,
+      fontWeight: 700,
+      color: "#FFFFFF"
+    }
+  }, sv.bienSo, " \xB7 ", sv.taiXe || sv.tenTX)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: copySV,
+    style: {
+      background: copiedSV ? "#17666A" : "#0B3335",
+      border: "1px solid " + (copiedSV ? "#2DCCD3" : "#2DCCD333"),
+      color: copiedSV ? "#2DCCD3" : C.sub,
+      borderRadius: 8,
+      padding: "6px 9px",
+      cursor: "pointer",
+      fontSize: 11,
+      fontFamily: "inherit",
+      fontWeight: 700
+    }
+  }, copiedSV ? "\u2705 Copy" : "\uD83D\uDCCB"), /*#__PURE__*/React.createElement("button", {
+    onClick: onEdit,
+    style: {
+      background: "#17666A",
+      border: "none",
+      color: "#57D6DC",
+      borderRadius: 8,
+      padding: "6px 12px",
+      cursor: "pointer",
+      fontSize: 12,
+      fontFamily: "inherit"
+    }
+  }, "\u270F\uFE0F"), /*#__PURE__*/React.createElement("button", {
+    onClick: onClose,
+    style: {
+      background: "#17666A55",
+      border: "none",
+      color: C.sub,
+      borderRadius: 8,
+      padding: "6px 12px",
+      cursor: "pointer",
+      fontSize: 13
+    }
+  }, "\u2715"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 16
+    }
+  }, /*#__PURE__*/React.createElement(StepBar, {
+    loai: sv.loai,
+    buocHienTai: sv.buocHienTai,
+    onClick: chuyenBuoc
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: C.sub,
+      textAlign: "center",
+      marginBottom: 12
+    }
+  }, "B\u1EA5m v\xE0o b\u01B0\u1EDBc \u0111\u1EC3 c\u1EADp nh\u1EADt ti\u1EBFn \u0111\u1ED9"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 6,
+      flexWrap: "wrap",
+      marginBottom: 12
+    }
+  }, sv.nhomLoi && /*#__PURE__*/React.createElement("span", {
+    style: {
+      background: C.red + "22",
+      color: C.red,
+      fontSize: 10,
+      fontWeight: 700,
+      padding: "2px 7px",
+      borderRadius: 10,
+      border: `1px solid ${C.red}44`
+    }
+  }, sv.nhomLoi), sv.nguoiBiThuong && /*#__PURE__*/React.createElement("span", {
+    style: {
+      background: C.red + "22",
+      color: C.red,
+      fontSize: 10,
+      fontWeight: 700,
+      padding: "2px 7px",
+      borderRadius: 10,
+      border: `1px solid ${C.red}44`
+    }
+  }, "\u26A0\uFE0F Ng\u01B0\u1EDDi b\u1ECB th\u01B0\u01A1ng"), sv.cqcaGiu && /*#__PURE__*/React.createElement("span", {
+    style: {
+      background: "#8b5cf622",
+      color: "#a78bfa",
+      fontSize: 10,
+      fontWeight: 700,
+      padding: "2px 7px",
+      borderRadius: 10,
+      border: "1px solid #8b5cf644"
+    }
+  }, "\uD83D\uDE94 CA gi\u1EEF xe", sv.tenCQCA ? " - " + sv.tenCQCA : ""), sv.vanDoanhTamThoi && /*#__PURE__*/React.createElement("span", {
+    style: {background:"#2DCCD322",color:"#2DCCD3",fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10,border:"1px solid #2DCCD344"}
+  }, "\uD83D\uDFE2 V\u1EADn doanh t\u1EA1m th\u1EDDi"), sv.xeVaoXuong && /*#__PURE__*/React.createElement("span", {
+    style: {background:"#FF8C4222",color:"#FF8C42",fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10,border:"1px solid #FF8C4244"}
+  }, "\uD83D\uDD28 V\xE0o x\u01B0\u1EDFng", sv.xuongDuKien ? ": " + sv.xuongDuKien : ""), member && /*#__PURE__*/React.createElement("span", {
+    style: {
+      background: member.mau + "22",
+      color: member.mau,
+      fontSize: 10,
+      fontWeight: 700,
+      padding: "2px 7px",
+      borderRadius: 10,
+      border: `1px solid ${member.mau}44`
+    }
+  }, "\uD83D\uDC64 ", member.ten, " \xB7 ", member.sdt), (sv.benChiTra || []).map(b => /*#__PURE__*/React.createElement("span", {
+    key: b,
+    style: {
+      background: C.accent + "22",
+      color: C.accent,
+      fontSize: 10,
+      fontWeight: 700,
+      padding: "2px 7px",
+      borderRadius: 10,
+      border: `1px solid ${C.accent}44`
+    }
+  }, b))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: C.card,
+      borderRadius: 12,
+      padding: 14,
+      marginBottom: 10,
+      border: `1px solid ${C.border}`
+    }
+  }, /*#__PURE__*/React.createElement(R, {
+    label: "Bi\u1EC3n s\u1ED1",
+    val: sv.bienSo
+  }), /*#__PURE__*/React.createElement(R, {
+    label: "Lo\u1EA1i xe",
+    val: sv.loaiXe
+  }), /*#__PURE__*/React.createElement(R, {
+    label: "S\u1ED1 khung",
+    val: sv.soKhung
+  }), /*#__PURE__*/React.createElement(R, {
+    label: "T\u1ED5 / Ph\u1EE5 tr\xE1ch",
+    val: sv.to ? `${sv.to} · ${member?.ten || "—"} (${member?.sdt || "—"})` : null
+  }), /*#__PURE__*/React.createElement(R, {
+    label: "M\xE3 NV",
+    val: sv.maNV
+  }), /*#__PURE__*/React.createElement(R, {
+    label: "Th\u1EDDi gian VCTN",
+    val: sv.loai === "XE_XUONG" ? null : `${fmtDate(sv.ngayTao)} ${sv.thoiGian || ""}`
+  }), sv.loai === "XE_XUONG" && /*#__PURE__*/React.createElement(R, {
+    label: "Ng\xE0y v\xE0o x\u01B0\u1EDFng",
+    val: `${fmtDate(sv.ngayTao)} ${sv.thoiGian || ""}`
+  }), /*#__PURE__*/React.createElement(R, {
+    label: "\u0110\u1ECBa \u0111i\u1EC3m",
+    val: sv.diaDiem || sv.viTri
+  }), /*#__PURE__*/React.createElement(R, {
+    label: "Nguy\xEAn nh\xE2n",
+    val: sv.moTa
+  }), /*#__PURE__*/React.createElement(R, {
+    label: "H\u01B0 h\u1ECFng xe Xanh SM",
+    val: sv.huHong
+  }), /*#__PURE__*/React.createElement(R, {
+    label: "Thi\u1EC7t h\u1EA1i xe kh\xE1c",
+    val: sv.thietHaiXeKhac
+  }), /*#__PURE__*/React.createElement(R, {
+    label: "Kh\xE1ch tr\xEAn xe",
+    val: sv.khachTrenXe
+  })), sv.loai === "NGHI_VIEC" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style:{background:"rgba(87,214,220,0.07)",borderRadius:12,padding:14,marginBottom:10,border:"1px solid #57D6DC33"}
+  }, /*#__PURE__*/React.createElement("div", {
+    style:{fontSize:10,fontWeight:800,color:"#57D6DC",marginBottom:8,letterSpacing:0.6}
+  }, "\uD83D\uDEAA \u0110\u0102NG K\u00DD NGH\u1EC8 PH\u00C9P"), /*#__PURE__*/React.createElement(R, {
+    label:"L\xFD do",val:sv.lyDo
+  }), /*#__PURE__*/React.createElement(R, {
+    label:"Ng\xE0y b\xE1o",val:sv.ngayTao?fmtDate(sv.ngayTao):null
+  }), /*#__PURE__*/React.createElement(R, {
+    label:"Ng\xE0y quay l\u1EA1i",val:sv.ngayDuKienXong?fmtDate(sv.ngayDuKienXong):null,color:"#57D6DC"
+  }), sv.ngayTao && sv.ngayDuKienXong && /*#__PURE__*/React.createElement(R, {
+    label:"S\u1ED1 ng\xE0y ngh\u1EC9",
+    val:Math.ceil((new Date(sv.ngayDuKienXong)-new Date(sv.ngayTao))/86400000)+" ng\xE0y",
+    color:"#FFCA00"
+  }), sv.moTa && /*#__PURE__*/React.createElement(R, {
+    label:"Ghi ch\xFA",val:sv.moTa
+  })), /*#__PURE__*/React.createElement(CopyNghiBtn, {sv:sv, member:member})), (sv.tenXuong || sv.nhomLoiXuong) && /*#__PURE__*/React.createElement("div", {
+    style:{background:"rgba(255,140,66,0.08)",borderRadius:12,padding:14,marginBottom:10,border:"1px solid rgba(255,140,66,0.3)"}
+  }, /*#__PURE__*/React.createElement("div", {
+    style:{fontSize:10,fontWeight:700,color:"#FF8C42",marginBottom:8,letterSpacing:0.6}
+  }, "\uD83D\uDD28 X\u01AF\u1EDENG S\u1EECA CH\u1EEA"), /*#__PURE__*/React.createElement(R, {
+    label:"T\xEAn x\u01B0\u1EDFng",val:sv.tenXuong
+  }), /*#__PURE__*/React.createElement(R, {
+    label:"Nh\xF3m l\u1ED7i",val:sv.nhomLoiXuong
+  }), /*#__PURE__*/React.createElement(R, {
+    label:"Chi ti\u1EBFt",val:sv.chiTietHuHong
+  }), /*#__PURE__*/React.createElement(R, {
+    label:"ODO v\xE0o (km)",val:sv.odoVaoXuong?String(sv.odoVaoXuong):null
+  }), /*#__PURE__*/React.createElement(R, {
+    label:"DK l\u1EA5y xe",val:fmtDate(sv.ngayLayXe)
+  }), /*#__PURE__*/React.createElement(R, {
+    label:"X\u01B0\u1EDFng DK (VCTN)",val:sv.xuongDuKien
+  }), /*#__PURE__*/React.createElement(R, {
+    label:"TT tr\u01B0\u1EDBc",val:sv.trangThaiTruoc
+  }), /*#__PURE__*/React.createElement(R, {
+    label:"TT m\u1EDBi",val:sv.trangThaiMoi,color:"#FF8C42"
+  })), sv.bhDV && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: C.card,
+      borderRadius: 12,
+      padding: 14,
+      marginBottom: 10,
+      border: `1px solid ${C.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      color: C.sub,
+      marginBottom: 8,
+      letterSpacing: 0.6
+    }
+  }, "\uD83D\uDEE1\uFE0F B\u1EA2O HI\u1EC2M"), /*#__PURE__*/React.createElement(R, {
+    label: "\u0110\u01A1n v\u1ECB BH",
+    val: sv.bhDV
+  }), /*#__PURE__*/React.createElement(R, {
+    label: "Ph\u1EA1m vi",
+    val: sv.phamViBH
+  }), /*#__PURE__*/React.createElement(R, {
+    label: "CV b\u1EA3o hi\u1EC3m",
+    val: sv.cvBH
+  }), /*#__PURE__*/React.createElement(R, {
+    label: "Ng\xE0y b\xE1o BH",
+    val: sv.ngayBaoBH ? `${fmtDate(sv.ngayBaoBH)} ${sv.gioBaoBH || ""}` : null
+  }), /*#__PURE__*/React.createElement(R, {
+    label: "S\u1ED1 H\u0110 / Ng\xE0y",
+    val: sv.soHD ? `${sv.soHD} · ${fmtDate(sv.ngayHD)}` : null
+  })), sv.xuong && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: C.card,
+      borderRadius: 12,
+      padding: 14,
+      marginBottom: 10,
+      border: `1px solid ${C.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      color: C.sub,
+      marginBottom: 8,
+      letterSpacing: 0.6
+    }
+  }, "\uD83D\uDD27 X\u01AF\u1EDENG & CHI PH\xCD"), /*#__PURE__*/React.createElement(R, {
+    label: "X\u01B0\u1EDFng",
+    val: sv.xuong
+  }), /*#__PURE__*/React.createElement(R, {
+    label: "\u0110\u1EA7u m\u1ED1i",
+    val: sv.dauMoiXuong
+  }), /*#__PURE__*/React.createElement(R, {
+    label: "Tr\u1EA1ng th\xE1i SC",
+    val: sv.ttSC
+  }), /*#__PURE__*/React.createElement(R, {
+    label: "V\xE0o x\u01B0\u1EDFng",
+    val: sv.ngayVaoXuong ? `${fmtDate(sv.ngayVaoXuong)} ${sv.gioVaoXuong || ""}` : null
+  }), /*#__PURE__*/React.createElement(R, {
+    label: "DK xong",
+    val: fmtDate(sv.ngayDuKienXong)
+  }), /*#__PURE__*/React.createElement(R, {
+    label: "Xong th\u1EF1c t\u1EBF",
+    val: sv.ngaySuaXong ? `${fmtDate(sv.ngaySuaXong)} ${sv.gioSuaXong || ""}` : null
+  }), (sv.tongTT || 0) > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#063335",
+      borderRadius: 8,
+      padding: 10,
+      marginTop: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 8
+    }
+  }, [["Tổng TT", sv.tongTT], ["BH trả", sv.bhTraTT], ["TX trả", sv.txTraTT], ["CT trả", sv.ctTraTT]].map(([l, v]) => /*#__PURE__*/React.createElement("div", {
+    key: l
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: C.sub
+    }
+  }, l), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 15,
+      fontWeight: 700,
+      color: C.accent
+    }
+  }, fmtK(v || 0))))), conNo !== 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 8,
+      paddingTop: 8,
+      borderTop: `1px solid ${C.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: C.sub
+    }
+  }, "\u0110\xE3 thu TX: ", fmtK((sv.daThuTXNH || 0) + (sv.daThuTXLuong || 0) + (sv.daThuTXCoc || 0))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      color: conNo > 0 ? C.red : C.accent
+    }
+  }, "C\xF2n l\u1EA1i: ", fmtK(Math.abs(conNo)), conNo < 0 ? " (thu dư)" : "")))), (sv.xeVaoXuong || sv.loai === "XE_XUONG") && /*#__PURE__*/React.createElement("div", {
+    style:{background:C.card,borderRadius:12,padding:14,marginBottom:10,border:"1px solid #FF8C4233"}
+  }, /*#__PURE__*/React.createElement("div", {style:{fontSize:10,fontWeight:700,color:"#FF8C42",marginBottom:8,letterSpacing:0.6}}, "\uD83D\uDD28 XE V\xC0O X\u01AF\u1EDENG"),
+  /*#__PURE__*/React.createElement(R, {label:"Tr\u1EA1ng th\xE1i",val:sv.vanDoanhTamThoi?"\uD83D\uDFE2 V\u1EABn v\u1EADn doanh":"\uD83D\uDFE0 V\xE0o x\u01B0\u1EDFng (XeVctn)",color:sv.vanDoanhTamThoi?"#2DCCD3":"#FF8C42"}),
+  /*#__PURE__*/React.createElement(R, {label:"X\u01B0\u1EDFng d\u1EF1 ki\u1EBFn",val:sv.xuongDuKien||sv.tenXuong||null}),
+  /*#__PURE__*/React.createElement(R, {label:"Nh\xF3m l\u1ED7i",val:sv.nhomLoiXuong||null}),
+  /*#__PURE__*/React.createElement(R, {label:"Chi ti\u1EBFt",val:sv.chiTietHuHong||null}),
+  /*#__PURE__*/React.createElement(R, {label:"ODO v\xE0o",val:sv.odoVaoXuong?sv.odoVaoXuong+" km":null}),
+  /*#__PURE__*/React.createElement(R, {label:"D\u1EF1 ki\u1EBFn l\u1EA5y",val:fmtDate(sv.ngayLayXe)})), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      color: C.sub,
+      marginBottom: 10,
+      letterSpacing: 0.6
+    }
+  }, "\uD83D\uDCCB NH\u1EACT K\xDD X\u1EEC L\xDD"), logs.map((g, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: "flex",
+      gap: 10,
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 8,
+      height: 8,
+      borderRadius: "50%",
+      background: C.accent,
+      flexShrink: 0,
+      marginTop: 4
+    }
+  }), i < logs.length - 1 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 1,
+      flex: 1,
+      background: C.border,
+      marginTop: 4
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      paddingBottom: 4
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: C.sub,
+      marginBottom: 2
+    }
+  }, fmtDT(g.time), " \xB7 ", g.nguoi), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      color: C.text,
+      lineHeight: 1.5
+    }
+  }, g.noi))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    value: note,
+    onChange: e => setNote(e.target.value),
+    onKeyDown: e => e.key === "Enter" && addNote(),
+    placeholder: "C\u1EADp nh\u1EADt ti\u1EBFn \u0111\u1ED9...",
+    style: {
+      flex: 1,
+      background: C.card,
+      border: `1px solid ${C.border}`,
+      borderRadius: 10,
+      color: C.text,
+      padding: "10px 12px",
+      fontSize: 13,
+      outline: "none",
+      fontFamily: "inherit"
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: addNote,
+    style: {
+      background: "#17666A",
+      color: "#fff",
+      border: "none",
+      borderRadius: 10,
+      padding: "10px 16px",
+      fontSize: 13,
+      cursor: "pointer",
+      fontWeight: 600,
+      fontFamily: "inherit"
+    }
+  }, "L\u01B0u")), sv.trangThai !== "hoan_thanh" && idx < buocs.length - 1 && /*#__PURE__*/React.createElement("button", {
+    onClick: () => chuyenBuoc(buocs[idx + 1].id),
+    style: {
+      width: "100%",
+      background: "#2DCCD3",
+      color: "#fff",
+      border: "none",
+      borderRadius: 12,
+      padding: 12,
+      fontSize: 14,
+      fontWeight: 700,
+      cursor: "pointer",
+      fontFamily: "inherit",
+      marginBottom: 8
+    }
+  }, "\u27A1\uFE0F ", buocs[idx + 1].label), sv.trangThai === "hoan_thanh" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      color: C.accent,
+      fontWeight: 700,
+      padding: 12,
+      background: "#063335",
+      borderRadius: 12
+    }
+  }, "\u2705 S\u1EF1 v\u1EE5 ho\xE0n th\xE0nh"))));
+}
+
+// ── REPORT TEMPLATES ─────────────────────────────────────────────────────────
+function genSuVuText(sv) {
+  const loaiInfo = LOAI_SU_VU[sv.loai] || {label: sv.loai||"Sự vụ", icon: "📋", color:C.accent};
+  const buocLabel = (getBuoc(sv.loai).find(b => b.id === sv.buocHienTai) || {}).label || "—";
+  const conNo = Math.max(0, (sv.txTraTT||0) - ((sv.daThuTXNH||0)+(sv.daThuTXLuong||0)+(sv.daThuTXCoc||0)));
+  const member = (TEAM.slice(1).find(m => m.to === sv.to) || {});
+  const sep = "━━━━━━━━━━━━━━━━━━━━━━";
+  const L = [];
+
+  if (sv.loai === "VCTN") {
+    L.push(`📢 BÁO CÁO SỰ CỐ VCTN OCP07`);
+    L.push(``);
+    L.push(` 👤 Tài xế: ${sv.taiXe || sv.tenTX || "—"}${sv.maNV ? " – Mã NV: " + sv.maNV : ""}`);
+    L.push(` 🚗 Biển số xe: ${sv.bienSo || "—"}`);
+    L.push(` 👤 Tổ: ${sv.to || "—"}${member.ten ? " · GS: " + member.ten + " – " + (member.sdt||"") : ""}`);
+    L.push(` 📍 Vị trí xảy ra tai nạn: ${sv.diaDiem || sv.viTri || "—"}`);
+    L.push(` 🕐 Thời gian: ${sv.ngayTao || "—"}${sv.thoiGian ? " " + sv.thoiGian : ""}`);
+    L.push(` 🔎 Nguyên nhân: ${sv.moTa || "—"}`);
+    L.push(` 📝 Thiệt hại xe Xanh SM: ${sv.huHong || "—"}`);
+    if (sv.thietHaiXeKhac) L.push(` 📝 Thiệt hại xe / phía kia: ${sv.thietHaiXeKhac}`);
+    L.push(` 🩹 Hiện trường: ${sv.nguoiBiThuong ? "⚠️ Có người bị thương" : "Không ai bị thương"}`);
+    L.push(` 📝 Khi va chạm trên xe: ${sv.khachTrenXe || "—"}`);
+    if (sv.cqcaGiu) L.push(` 🚔 CA tạm giữ xe: CÓ${sv.tenCQCA ? " – " + sv.tenCQCA : ""}`);
+    if (sv.vanDoanhTamThoi) L.push(` 🟢 Xe vẫn vận doanh tạm thời`);
+    if (sv.xeVaoXuong) L.push(` 🔨 Xe cần vào xưởng: ${sv.xuongDuKien || "Chưa xác định"}`);
+    L.push(` 📊 Tiến độ XL: ${buocLabel} (${daysSince(sv.ngayTao)} ngày)`);
+
+    if (sv.bhDV || sv.cvBH) {
+      L.push(``);
+      L.push(` 🛡️ BẢO HIỂM`);
+      if (sv.bhDV) L.push(`   • BH dịch vụ: ${sv.bhDV}`);
+      if (sv.cvBH) L.push(`   • Chuyên viên: ${sv.cvBH}${sv.sdtCVBH ? " – " + sv.sdtCVBH : ""}`);
+      if (sv.maBBBH) L.push(`   • Mã BB/BH: ${sv.maBBBH}`);
+    }
+    if (sv.xuong || sv.tenXuong) {
+      L.push(``);
+      L.push(` 🔧 SỬA CHỮA`);
+      L.push(`   • Xưởng: ${sv.xuong || sv.tenXuong}`);
+      if (sv.nhomLoiXuong) L.push(`   • Nhóm lỗi: ${sv.nhomLoiXuong}`);
+      if (sv.chiTietHuHong) L.push(`   • Chi tiết: ${sv.chiTietHuHong}`);
+      if (sv.odoVaoXuong) L.push(`   • ODO vào: ${sv.odoVaoXuong} km`);
+      if (sv.ngayLayXe) L.push(`   • DK lấy xe: ${fmtDate(sv.ngayLayXe)}`);
+    }
+    if (sv.tongTT || sv.bhTraTT || sv.txTraTT) {
+      L.push(``);
+      L.push(` 💰 TÀI CHÍNH`);
+      L.push(`   • Tổng SC: ${fmtK(sv.tongTT||0)}`);
+      L.push(`   • BH đã trả: ${fmtK(sv.bhTraTT||0)}`);
+      L.push(`   • TX đã trả: ${fmtK(sv.txTraTT||0)}`);
+      if (conNo > 0) L.push(`   • 💸 TX còn nợ: ${fmtK(conNo)}`);
+    }
+  } else if (sv.loai === "XE_XUONG") {
+    L.push(`📢 BÁO CÁO XE VÀO XƯỞNG OCP07`);
+    L.push(``);
+    L.push(` 👤 Tài xế: ${sv.taiXe || sv.tenTX || "—"}${sv.maNV ? " – Mã NV: " + sv.maNV : ""}`);
+    L.push(` 🚗 Biển số xe: ${sv.bienSo || "—"}`);
+    L.push(` 👤 Tổ: ${sv.to || "—"}${member.ten ? " · GS: " + member.ten + " – " + (member.sdt||"") : ""}`);
+    L.push(` 🕐 Ngày vào xưởng: ${sv.ngayTao || "—"}${sv.thoiGian ? " " + sv.thoiGian : ""}`);
+    L.push(` 🔨 Xưởng: ${sv.tenXuong || sv.xuong || "—"}`);
+    L.push(` 🔎 Nhóm lỗi: ${sv.nhomLoiXuong || "—"}`);
+    if (sv.chiTietHuHong) L.push(` 📝 Chi tiết: ${sv.chiTietHuHong}`);
+    if (sv.odoVaoXuong) L.push(` 📏 ODO vào: ${sv.odoVaoXuong} km`);
+    if (sv.ngayLayXe) L.push(` 📅 DK lấy xe: ${fmtDate(sv.ngayLayXe)}`);
+    L.push(` 📊 Trạng thái: ${sv.trangThaiTruoc||"—"} → ${sv.trangThaiMoi||"—"}`);
+    L.push(` 📊 Tiến độ XL: ${buocLabel} (${daysSince(sv.ngayTao)} ngày)`);
+  } else if (sv.loai === "KY_THUAT") {
+    L.push(`📢 BÁO CÁO LỖI KỸ THUẬT OCP07`);
+    L.push(``);
+    L.push(` 👤 Tài xế: ${sv.taiXe || sv.tenTX || "—"}${sv.maNV ? " – Mã NV: " + sv.maNV : ""}`);
+    L.push(` 🚗 Biển số xe: ${sv.bienSo || "—"}`);
+    L.push(` 👤 Tổ: ${sv.to || "—"}${member.ten ? " · GS: " + member.ten + " – " + (member.sdt||"") : ""}`);
+    L.push(` 📍 Địa điểm: ${sv.diaDiem || sv.viTri || "—"}`);
+    L.push(` 🕐 Thời gian: ${sv.ngayTao || "—"}${sv.thoiGian ? " " + sv.thoiGian : ""}`);
+    L.push(` 🔎 Mô tả lỗi: ${sv.moTaKT || sv.moTa || "—"}`);
+    L.push(` 📊 Tiến độ XL: ${buocLabel} (${daysSince(sv.ngayTao)} ngày)`);
+  } else if (sv.loai === "KHACH_HANG") {
+    L.push(`📢 BÁO CÁO PHẢN HỒI KHÁCH HÀNG OCP07`);
+    L.push(``);
+    L.push(` 👤 Tài xế: ${sv.taiXe || sv.tenTX || "—"}`);
+    L.push(` 🚗 Biển số xe: ${sv.bienSo || "—"}`);
+    L.push(` 👤 Tổ: ${sv.to || "—"}${member.ten ? " · GS: " + member.ten + " – " + (member.sdt||"") : ""}`);
+    if (sv.tenKhach) L.push(` 👥 Khách hàng: ${sv.tenKhach}`);
+    L.push(` 🕐 Thời gian: ${sv.ngayTao || "—"}`);
+    L.push(` 📝 Nội dung: ${sv.moTa || "—"}`);
+    L.push(` 📊 Tiến độ XL: ${buocLabel} (${daysSince(sv.ngayTao)} ngày)`);
+  } else if (sv.loai === "NGHI_VIEC") {
+    const soNgay = sv.ngayTao && sv.ngayDuKienXong
+      ? Math.ceil((new Date(sv.ngayDuKienXong) - new Date(sv.ngayTao)) / 86400000)
+      : null;
+    L.push(`📢 ĐĂNG KÝ NGHỈ PHÉP OCP07`);
+    L.push(``);
+    L.push(` 👤 Tài xế: ${sv.taiXe || sv.tenTX || "—"}${sv.maNV ? " – Mã NV: " + sv.maNV : ""}`);
+    L.push(` 🚗 Biển số xe: ${sv.bienSo || "—"}`);
+    L.push(` 👤 Tổ: ${sv.to || "—"}${member.ten ? " · GS: " + member.ten + " – " + (member.sdt||"") : ""}`);
+    L.push(` 🕐 Ngày báo: ${sv.ngayTao ? fmtDate(sv.ngayTao) : "—"}${sv.thoiGian ? " " + sv.thoiGian : ""}`);
+    L.push(` 🔎 Lý do nghỉ: ${sv.lyDo || "—"}`);
+    if (sv.ngayDuKienXong) L.push(` 📅 Ngày quay lại: ${fmtDate(sv.ngayDuKienXong)}${soNgay ? " (" + soNgay + " ngày)" : ""}`);
+    L.push(` 📊 Tiến độ XL: ${buocLabel}`);
+    if (sv.moTa) L.push(` 📝 Ghi chú: ${sv.moTa}`);
+  } else if (sv.loai === "XUONG_CA") {
+    L.push(`📢 THÔNG BÁO XUỐNG CA OCP07`);
+    L.push(``);
+    L.push(` 👤 Tài xế: ${sv.taiXe || sv.tenTX || "—"}`);
+    L.push(` 🚗 Biển số xe: ${sv.bienSo || "—"}`);
+    L.push(` 👤 Tổ: ${sv.to || "—"}${member.ten ? " · GS: " + member.ten + " – " + (member.sdt||"") : ""}`);
+    L.push(` 🕐 Thời gian: ${sv.ngayTao || "—"}${sv.thoiGian ? " " + sv.thoiGian : ""}`);
+    L.push(` 📍 Vị trí: ${sv.diaDiem || sv.viTri || "—"}`);
+    if (sv.moTa) L.push(` 🔎 Lý do: ${sv.moTa}`);
+  }
+
+  // Ghi chú gần nhất (chung cho tất cả loại)
+  const logs = sv.ghiChu || sv.nhatKy || sv.logs || [];
+  if (logs.length > 0) {
+    L.push(``);
+    L.push(`📝 GHI CHÚ GẦN NHẤT`);
+    logs.slice(-2).forEach(g => {
+      const t = g.time ? new Date(g.time).toLocaleString("vi-VN", {hour:"2-digit",minute:"2-digit",second:"2-digit",day:"numeric",month:"numeric",year:"numeric"}) : "";
+      L.push(`• ${t}: ${g.noi}`);
+    });
+  }
+
+  L.push(``);
+  L.push(sep);
+  return L.join("\n");
+}
+
+
+function genTuanText(data, tuNgay, denNgay) {
+  const conNoSv = s => Math.max(0,(s.txTraTT||0)-((s.daThuTXNH||0)+(s.daThuTXLuong||0)+(s.daThuTXCoc||0)));
+  const total = data.length;
+  const dang = data.filter(s=>s.trangThai!=="hoan_thanh").length;
+  const hoan = data.filter(s=>s.trangThai==="hoan_thanh").length;
+  const tongSC = data.reduce((a,s)=>a+(s.tongTT||0),0);
+  const bhTra = data.reduce((a,s)=>a+(s.bhTraTT||0),0);
+  const conNo = data.reduce((a,s)=>a+conNoSv(s),0);
+  const vctnList = data.filter(s=>s.loai==="VCTN");
+  const xuongList = data.filter(s=>s.loai==="XE_XUONG"||s.xeVaoXuong);
+  const namLau = data.filter(s=>s.trangThai!=="hoan_thanh"&&daysSince(s.ngayTao)>=7);
+  const byLoai = Object.entries(LOAI_SU_VU).map(([k,v])=>({k,v,count:data.filter(s=>s.loai===k).length})).filter(x=>x.count>0);
+  const byTo = TEAM.slice(1).map(m=>({m,count:data.filter(s=>s.to===m.to).length,cn:data.filter(s=>s.to===m.to).reduce((a,s)=>a+conNoSv(s),0)}));
+  const sep = "━━━━━━━━━━━━━━━━━━━━━━";
+  const d1=new Date(tuNgay),d2=new Date(denNgay);
+  const weekNum=Math.ceil(d1.getDate()/7);
+  const L=[];
+  L.push(`📊 BÁO CÁO TUẦN ${weekNum} - OCP.DOIXE07`);
+  L.push(`🗓 ${fmtDate(tuNgay)} → ${fmtDate(denNgay)}`);
+  L.push(sep);
+  L.push(`📋 TỔNG QUAN`);
+  L.push(`• Tổng sự vụ: ${total} | Đang XL: ${dang} | Hoàn thành: ${hoan}`);
+  if(total>0) L.push(`• Tỷ lệ HT: ${Math.round(hoan/total*100)}%`);
+  L.push(`• Chi phí SC: ${fmtK(tongSC)} | BH đã trả: ${fmtK(bhTra)}`);
+  if(conNo>0) L.push(`• 💸 TX còn nợ: ${fmtK(conNo)}`);
+  L.push(``);
+  if(byLoai.length>0){
+    L.push(`📂 THEO LOẠI`);
+    byLoai.forEach(x=>L.push(`${x.v.icon} ${x.v.label}: ${x.count} vụ`));
+    L.push(``);
+  }
+  if(namLau.length>0||xuongList.length>0){
+    L.push(`⚠️ CẦN CHÚ Ý`);
+    if(namLau.length>0){
+      L.push(`🔴 Nằm lâu >7 ngày: ${namLau.length} sự vụ`);
+      namLau.forEach(s=>L.push(`   • ${s.bienSo||s.taiXe} · ${daysSince(s.ngayTao)}ng · ${(getBuoc(s.loai).find(b=>b.id===s.buocHienTai)||{}).label||"—"}`));
+    }
+    if(xuongList.length>0){
+      L.push(`🔨 Đang tại xưởng: ${xuongList.length} xe`);
+      xuongList.forEach(s=>L.push(`   • ${s.bienSo||s.taiXe} · ${s.tenXuong||s.xuong||"—"} · ${daysSince(s.ngayTao)}ng`));
+    }
+    L.push(``);
+  }
+  if(vctnList.length>0){
+    L.push(`💥 VCTN CHI TIẾT (${vctnList.length} vụ)`);
+    vctnList.forEach((s,i)=>{
+      const bl=(getBuoc("VCTN").find(b=>b.id===s.buocHienTai)||{}).label||"—";
+      const cn=conNoSv(s);
+      L.push(`${i+1}. ${s.bienSo||"—"} · ${s.taiXe||s.tenTX||"—"}`);
+      L.push(`   📅 ${fmtDate(s.ngayTao)}${s.thoiGian?" "+s.thoiGian:""} | ${s.nhomLoi||""} | ${bl}`);
+      if(s.diaDiem||s.viTri) L.push(`   📍 ${s.diaDiem||s.viTri}`);
+      if(s.tongTT||s.bhTraTT||cn>0) L.push(`   💰 SC:${fmtK(s.tongTT||0)} BH:${fmtK(s.bhTraTT||0)}${cn>0?" Nợ:"+fmtK(cn):""}`);
+      if(s.xuong||s.tenXuong) L.push(`   🔧 ${(s.xuong||s.tenXuong||"").replace("VinFast ","")}`);
+    });
+    L.push(``);
+  }
+  L.push(`👥 THEO TỔ`);
+  byTo.filter(x=>x.count>0).forEach(x=>{
+    L.push(`• ${x.m.ten} (${x.m.chuc}): ${x.count} vụ${x.cn>0?" | 💸 Nợ: "+fmtK(x.cn):" ✅"}`);
+  });
+  L.push(``);
+  L.push(sep);
+  L.push(`📍 OCP.DOIXE07 · Depot Hà Nội 1`);
+  L.push(`📲 doixeocp07.cloud`);
+  return L.join("\n");
+}
+
+function genThangText(data, thang, nam) {
+  const conNoSv = s=>Math.max(0,(s.txTraTT||0)-((s.daThuTXNH||0)+(s.daThuTXLuong||0)+(s.daThuTXCoc||0)));
+  const total=data.length;
+  const hoan=data.filter(s=>s.trangThai==="hoan_thanh").length;
+  const dang=total-hoan;
+  const tongSC=data.reduce((a,s)=>a+(s.tongTT||0),0);
+  const bhTra=data.reduce((a,s)=>a+(s.bhTraTT||0),0);
+  const conNo=data.reduce((a,s)=>a+conNoSv(s),0);
+  const vctnList=data.filter(s=>s.loai==="VCTN");
+  const vctnCQ=vctnList.filter(s=>s.nhomLoi==="Chủ quan").length;
+  const vctnKQ=vctnList.filter(s=>s.nhomLoi==="Khách quan").length;
+  const xuongList=data.filter(s=>s.loai==="XE_XUONG");
+  const byLoai=Object.entries(LOAI_SU_VU).map(([k,v])=>({k,v,count:data.filter(s=>s.loai===k).length})).filter(x=>x.count>0);
+  const byTo=TEAM.slice(1).map(m=>({m,count:data.filter(s=>s.to===m.to).length,vctn:data.filter(s=>s.to===m.to&&s.loai==="VCTN").length,cn:data.filter(s=>s.to===m.to).reduce((a,s)=>a+conNoSv(s),0)}));
+  const chuaXong=data.filter(s=>s.trangThai!=="hoan_thanh");
+  const sep="━━━━━━━━━━━━━━━━━━━━━━";
+  const L=[];
+  L.push(`📊 BÁO CÁO THÁNG ${thang}/${nam} - OCP.DOIXE07`);
+  L.push(sep);
+  L.push(`📋 TỔNG KẾT`);
+  L.push(`• Tổng sự vụ: ${total}`);
+  L.push(`• Hoàn thành: ${hoan}/${total} (${total>0?Math.round(hoan/total*100):0}%) | Còn XL: ${dang}`);
+  L.push(`• Chi phí SC: ${fmtK(tongSC)}`);
+  L.push(`• BH đã trả: ${fmtK(bhTra)}`);
+  L.push(`• TX còn nợ: ${fmtK(conNo)}`);
+  L.push(``);
+  if(byLoai.length>0){
+    L.push(`📂 PHÂN LOẠI SỰ VỤ`);
+    byLoai.forEach(x=>L.push(`${x.v.icon} ${x.v.label}: ${x.count} vụ`));
+    L.push(``);
+  }
+  if(vctnList.length>0){
+    L.push(`💥 PHÂN TÍCH VCTN (${vctnList.length} vụ)`);
+    L.push(`• Chủ quan: ${vctnCQ} | Khách quan: ${vctnKQ} | Khác: ${vctnList.length-vctnCQ-vctnKQ}`);
+    if(tongSC>0) L.push(`• Tổng thiệt hại: ${fmtK(tongSC)} | BH bù: ${fmtK(bhTra)} | TX chịu: ${fmtK(tongSC-bhTra)}`);
+    L.push(``);
+  }
+  if(xuongList.length>0){
+    L.push(`🔨 XE VÀO XƯỞNG (${xuongList.length} lần)`);
+    const xuongCount={};
+    xuongList.forEach(s=>{const x=s.tenXuong||s.xuong||"Khác";xuongCount[x]=(xuongCount[x]||0)+1;});
+    Object.entries(xuongCount).forEach(([x,c])=>L.push(`• ${x.replace("VinFast ","")}: ${c} xe`));
+    L.push(``);
+  }
+  L.push(`👥 HIỆU SUẤT THEO TỔ`);
+  byTo.forEach(x=>{
+    const rate=x.count>0?Math.round(data.filter(s=>s.to===x.m.to&&s.trangThai==="hoan_thanh").length/x.count*100):100;
+    L.push(`• ${x.m.ten} (${x.m.chuc}): ${x.count} vụ | VCTN: ${x.vctn} | HT: ${rate}%${x.cn>0?" | 💸 "+fmtK(x.cn):""}`);
+  });
+  L.push(``);
+  if(chuaXong.length>0){
+    L.push(`⏳ CHƯA HOÀN THÀNH (${chuaXong.length} vụ)`);
+    chuaXong.slice(0,5).forEach(s=>{
+      const bl=(getBuoc(s.loai).find(b=>b.id===s.buocHienTai)||{}).label||"—";
+      L.push(`• ${s.bienSo||s.taiXe||s.id} · ${(LOAI_SU_VU[s.loai]||{}).icon||""} ${bl} · ${daysSince(s.ngayTao)}ng`);
+    });
+    if(chuaXong.length>5)L.push(`  ... và ${chuaXong.length-5} sự vụ khác`);
+    L.push(``);
+  }
+  L.push(sep);
+  L.push(`📍 OCP.DOIXE07 · Depot Hà Nội 1`);
+  L.push(`📲 doixeocp07.cloud`);
+  return L.join("\n");
+}
+
+// ── BÁO CÁO ─────────────────────────────────────────────────────────────────
+function BaoCao({
+  svList
+}) {
+  const firstOfMonth = () => { const d=new Date(); d.setDate(1); return d.toISOString().slice(0,10); };
+  const sevenDaysAgo = () => { const d=new Date(); d.setDate(d.getDate()-7); return d.toISOString().slice(0,10); };
+  const [subTab, setSubTab] = useState("tuan");
+  const [tuNgay, setTuNgay] = useState(sevenDaysAgo());
+  const [denNgay, setDenNgay] = useState(today());
+  const [thang, setThang] = useState(new Date().getMonth()+1);
+  const [nam, setNam] = useState(new Date().getFullYear());
+  const [copied, setCopied] = useState(false);
+  const [showText, setShowText] = useState(false);
+  const conNoSv = s => Math.max(0,(s.txTraTT||0)-((s.daThuTXNH||0)+(s.daThuTXLuong||0)+(s.daThuTXCoc||0)));
+
+  // Data filter by sub-tab
+  const dataTuan = svList.filter(s => s.ngayTao >= tuNgay && s.ngayTao <= denNgay);
+  const dataThang = svList.filter(s => {
+    if(!s.ngayTao) return false;
+    const d=new Date(s.ngayTao);
+    return d.getMonth()+1===thang && d.getFullYear()===nam;
+  });
+
+  // Stats for Tuần
+  const statsTuan = {
+    total:dataTuan.length,
+    dang:dataTuan.filter(s=>s.trangThai!=="hoan_thanh").length,
+    hoan:dataTuan.filter(s=>s.trangThai==="hoan_thanh").length,
+    conNo:dataTuan.reduce((a,s)=>a+conNoSv(s),0),
+    tongSC:dataTuan.reduce((a,s)=>a+(s.tongTT||0),0),
+    bhTra:dataTuan.reduce((a,s)=>a+(s.bhTraTT||0),0)
+  };
+  const byLoaiTuan=Object.entries(LOAI_SU_VU).map(([k,v])=>({k,v,count:dataTuan.filter(s=>s.loai===k).length})).filter(x=>x.count>0);
+  const byToTuan=TEAM.slice(1).map(m=>({m,count:dataTuan.filter(s=>s.to===m.to).length,cn:dataTuan.filter(s=>s.to===m.to).reduce((a,s)=>a+conNoSv(s),0)}));
+  const vctnListTuan=dataTuan.filter(s=>s.loai==="VCTN");
+  const conNoListTuan=dataTuan.map(s=>({...s,cn:conNoSv(s)})).filter(s=>s.cn>0).sort((a,b)=>b.cn-a.cn);
+
+  // Stats for Tháng
+  const statsThang = {
+    total:dataThang.length,
+    hoan:dataThang.filter(s=>s.trangThai==="hoan_thanh").length,
+    tongSC:dataThang.reduce((a,s)=>a+(s.tongTT||0),0),
+    bhTra:dataThang.reduce((a,s)=>a+(s.bhTraTT||0),0),
+    conNo:dataThang.reduce((a,s)=>a+conNoSv(s),0)
+  };
+  const byLoaiThang=Object.entries(LOAI_SU_VU).map(([k,v])=>({k,v,count:dataThang.filter(s=>s.loai===k).length})).filter(x=>x.count>0);
+  const byToThang=TEAM.slice(1).map(m=>({m,count:dataThang.filter(s=>s.to===m.to).length,cn:dataThang.filter(s=>s.to===m.to).reduce((a,s)=>a+conNoSv(s),0)}));
+  const vctnListThang=dataThang.filter(s=>s.loai==="VCTN");
+
+  // SV list sorted newest first
+  const svSorted=[...svList].sort((a,b)=>(b.ngayTao||"").localeCompare(a.ngayTao||""));
+
+  const getCopyText = () => {
+    if(subTab==="tuan") return genTuanText(dataTuan,tuNgay,denNgay);
+    if(subTab==="thang") return genThangText(dataThang,thang,nam);
+    return "";
+  };
+  const doCopy = () => {
+    const txt=getCopyText();
+    navigator.clipboard.writeText(txt).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2500);}).catch(()=>setShowText(true));
+  };
+
+  const IS = {background:C.card,border:`1px solid ${C.border}`,borderRadius:8,color:C.text,padding:"8px 10px",fontSize:13,outline:"none",fontFamily:"inherit"};
+  const StatCard=({label,val,color,icon})=>/*#__PURE__*/React.createElement("div",{style:{background:C.card,borderRadius:10,padding:"10px 12px",border:`1px solid ${color}22`}},
+    /*#__PURE__*/React.createElement("div",{style:{fontSize:16}},icon),
+    /*#__PURE__*/React.createElement("div",{style:{fontSize:20,fontWeight:800,color,lineHeight:1.2,margin:"2px 0"}},val),
+    /*#__PURE__*/React.createElement("div",{style:{fontSize:10,color:C.sub}},label)
+  );
+
+  const SubTabBtn=({id,label})=>/*#__PURE__*/React.createElement("button",{
+    onClick:()=>{setSubTab(id);setCopied(false);setShowText(false);},
+    style:{flex:1,padding:"7px 4px",background:subTab===id?"#17666A":"none",border:`1px solid ${subTab===id?C.accent:C.border}`,borderRadius:8,color:subTab===id?C.accent:C.sub,fontSize:11,fontWeight:subTab===id?800:500,cursor:"pointer",fontFamily:"inherit"}
+  },label);
+
+  return /*#__PURE__*/React.createElement("div",null,
+    // Sub-tab selector
+    /*#__PURE__*/React.createElement("div",{style:{display:"flex",gap:6,marginBottom:12}},
+      /*#__PURE__*/React.createElement(SubTabBtn,{id:"sv",label:"📋 Từng SV"}),
+      /*#__PURE__*/React.createElement(SubTabBtn,{id:"tuan",label:"📅 Tuần"}),
+      /*#__PURE__*/React.createElement(SubTabBtn,{id:"thang",label:"📆 Tháng"})
+    ),
+
+    // ── TAB: TỪNG SỰ VỤ ──
+    subTab==="sv" && /*#__PURE__*/React.createElement("div",null,
+      /*#__PURE__*/React.createElement("div",{style:{fontSize:10,color:C.sub,marginBottom:8,letterSpacing:.5}},svList.length," sự vụ — bấm để copy báo cáo từng SV"),
+      svSorted.map(sv=>{
+        const loaiInfo=LOAI_SU_VU[sv.loai]||{icon:"📋",label:sv.loai,color:C.accent};
+        const buocLabel=(getBuoc(sv.loai).find(b=>b.id===sv.buocHienTai)||{}).label||"—";
+        return /*#__PURE__*/React.createElement("div",{key:sv.id,style:{background:C.card,borderRadius:10,padding:"10px 12px",marginBottom:8,border:`1px solid ${loaiInfo.color}22`}},
+          /*#__PURE__*/React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}},
+            /*#__PURE__*/React.createElement("div",null,
+              /*#__PURE__*/React.createElement("div",{style:{fontSize:13,fontWeight:700,color:"#fff"}},[loaiInfo.icon,sv.bienSo||sv.id," · ",sv.taiXe||sv.tenTX||"—"]),
+              /*#__PURE__*/React.createElement("div",{style:{fontSize:10,color:C.sub,marginTop:2}},[fmtDate(sv.ngayTao)," · ",sv.to," · ",buocLabel])
+            ),
+            /*#__PURE__*/React.createElement("button",{
+              onClick:()=>{const txt=genSuVuText(sv);navigator.clipboard.writeText(txt).catch(()=>{});},
+              style:{background:"#17666A",border:"none",color:C.accent,borderRadius:7,padding:"5px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit",fontWeight:700,flexShrink:0}
+            },"\uD83D\uDCCB Copy")
+          )
+        );
+      })
+    ),
+
+    // ── TAB: TUẦN ──
+    subTab==="tuan" && /*#__PURE__*/React.createElement("div",null,
+      /*#__PURE__*/React.createElement("div",{style:{background:C.card,borderRadius:12,padding:14,marginBottom:12,border:`1px solid ${C.border}`}},
+        /*#__PURE__*/React.createElement("div",{style:{fontSize:10,fontWeight:700,color:C.sub,marginBottom:10,letterSpacing:.6}},"🗓 KHOẢNG THỜI GIAN"),
+        /*#__PURE__*/React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}},
+          /*#__PURE__*/React.createElement("div",null,
+            /*#__PURE__*/React.createElement("div",{style:{fontSize:9,color:C.sub,marginBottom:4}},"TỪ NGÀY"),
+            /*#__PURE__*/React.createElement("input",{type:"date",value:tuNgay,onChange:e=>setTuNgay(e.target.value),style:IS})
+          ),
+          /*#__PURE__*/React.createElement("div",null,
+            /*#__PURE__*/React.createElement("div",{style:{fontSize:9,color:C.sub,marginBottom:4}},"ĐẾN NGÀY"),
+            /*#__PURE__*/React.createElement("input",{type:"date",value:denNgay,onChange:e=>setDenNgay(e.target.value),style:IS})
+          )
+        )
+      ),
+      /*#__PURE__*/React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}},
+        /*#__PURE__*/React.createElement(StatCard,{label:"Tổng SV",val:statsTuan.total,color:C.accent,icon:"📋"}),
+        /*#__PURE__*/React.createElement(StatCard,{label:"Đang XL",val:statsTuan.dang,color:C.yellow,icon:"⚡"}),
+        /*#__PURE__*/React.createElement(StatCard,{label:"Hoàn thành",val:statsTuan.hoan,color:"#22c55e",icon:"✅"}),
+        /*#__PURE__*/React.createElement(StatCard,{label:"Còn nợ TX",val:fmtK(statsTuan.conNo),color:statsTuan.conNo>0?C.red:C.accent,icon:"💸"})
+      ),
+      byLoaiTuan.length>0&&/*#__PURE__*/React.createElement("div",{style:{background:C.card,borderRadius:10,padding:"10px 12px",marginBottom:8,border:`1px solid ${C.border}`}},
+        /*#__PURE__*/React.createElement("div",{style:{fontSize:10,color:C.sub,marginBottom:6,fontWeight:700}},"THEO LOẠI"),
+        byLoaiTuan.map(x=>/*#__PURE__*/React.createElement("div",{key:x.k,style:{display:"flex",justifyContent:"space-between",padding:"3px 0",fontSize:12}},
+          /*#__PURE__*/React.createElement("span",{style:{color:C.text}},[x.v.icon," ",x.v.label]),
+          /*#__PURE__*/React.createElement("span",{style:{color:C.accent,fontWeight:700}},x.count," vụ")
+        ))
+      ),
+      byToTuan.filter(x=>x.count>0).length>0&&/*#__PURE__*/React.createElement("div",{style:{background:C.card,borderRadius:10,padding:"10px 12px",marginBottom:8,border:`1px solid ${C.border}`}},
+        /*#__PURE__*/React.createElement("div",{style:{fontSize:10,color:C.sub,marginBottom:6,fontWeight:700}},"THEO TỔ"),
+        byToTuan.filter(x=>x.count>0).map(x=>/*#__PURE__*/React.createElement("div",{key:x.m.to,style:{display:"flex",justifyContent:"space-between",padding:"3px 0",fontSize:12}},
+          /*#__PURE__*/React.createElement("span",{style:{color:x.m.mau,fontWeight:600}},[x.m.ten," (",x.m.chuc,")"]),
+          /*#__PURE__*/React.createElement("span",null,[/*#__PURE__*/React.createElement("span",{style:{color:C.accent,fontWeight:700}},x.count," vụ"),x.cn>0&&/*#__PURE__*/React.createElement("span",{style:{color:C.red,marginLeft:6}},"💸 ",fmtK(x.cn))])
+        ))
+      ),
+      vctnListTuan.length>0&&/*#__PURE__*/React.createElement("div",{style:{background:C.card,borderRadius:10,padding:"10px 12px",marginBottom:8,border:`1px solid #ef444422`}},
+        /*#__PURE__*/React.createElement("div",{style:{fontSize:10,color:C.red,marginBottom:6,fontWeight:700}},"💥 VCTN CHI TIẾT"),
+        vctnListTuan.map((s,i)=>{
+          const bl=(getBuoc("VCTN").find(b=>b.id===s.buocHienTai)||{}).label||"—";
+          const cn=conNoSv(s);
+          return /*#__PURE__*/React.createElement("div",{key:s.id,style:{padding:"6px 0",borderBottom:`1px solid ${C.border}`,fontSize:12}},
+            /*#__PURE__*/React.createElement("div",{style:{fontWeight:700,color:"#fff"}},[i+1,". ",s.bienSo," · ",s.taiXe||s.tenTX]),
+            /*#__PURE__*/React.createElement("div",{style:{color:C.sub,marginTop:2}},[s.nhomLoi||""," · ",bl," · ⏱",daysSince(s.ngayTao),"ng"]),
+            s.tongTT&&/*#__PURE__*/React.createElement("div",{style:{color:C.accent,marginTop:2}},["💰 SC:",fmtK(s.tongTT)," BH:",fmtK(s.bhTraTT||0),cn>0?" 💸 Nợ:"+fmtK(cn):""])
+          );
+        })
+      ),
+      conNoListTuan.length>0&&/*#__PURE__*/React.createElement("div",{style:{background:C.card,borderRadius:10,padding:"10px 12px",marginBottom:12,border:`1px solid #ef444422`}},
+        /*#__PURE__*/React.createElement("div",{style:{fontSize:10,color:C.red,marginBottom:6,fontWeight:700}},"💸 CÔNG NỢ TÀI XẾ"),
+        conNoListTuan.map((s,i)=>/*#__PURE__*/React.createElement("div",{key:s.id,style:{display:"flex",justifyContent:"space-between",padding:"3px 0",fontSize:12}},
+          /*#__PURE__*/React.createElement("span",{style:{color:C.text}},[i+1,". ",s.bienSo||"—"," · ",s.taiXe||s.tenTX||"—"]),
+          /*#__PURE__*/React.createElement("span",{style:{color:C.red,fontWeight:700}},fmtK(s.cn))
+        ))
+      ),
+      /*#__PURE__*/React.createElement("button",{onClick:doCopy,style:{width:"100%",background:"rgba(45,204,211,0.12)",border:`2px solid ${C.accent}44`,borderRadius:12,padding:12,color:C.accent,fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:"inherit",marginBottom:8}},
+        copied?"✅ Đã copy! Paste vào Zalo nhóm":"📋 Copy báo cáo tuần → Zalo"
+      ),
+      showText&&/*#__PURE__*/React.createElement("textarea",{readOnly:true,value:genTuanText(dataTuan,tuNgay,denNgay),rows:15,style:{width:"100%",background:"#071E20",border:`1px solid ${C.border}`,borderRadius:8,color:C.text,padding:10,fontSize:11,fontFamily:"monospace",resize:"vertical"}})
+    ),
+
+    // ── TAB: THÁNG ──
+    subTab==="thang" && /*#__PURE__*/React.createElement("div",null,
+      /*#__PURE__*/React.createElement("div",{style:{background:C.card,borderRadius:12,padding:14,marginBottom:12,border:`1px solid ${C.border}`}},
+        /*#__PURE__*/React.createElement("div",{style:{fontSize:10,fontWeight:700,color:C.sub,marginBottom:10,letterSpacing:.6}},"📆 THÁNG / NĂM"),
+        /*#__PURE__*/React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}},
+          /*#__PURE__*/React.createElement("div",null,
+            /*#__PURE__*/React.createElement("div",{style:{fontSize:9,color:C.sub,marginBottom:4}},"THÁNG"),
+            /*#__PURE__*/React.createElement("select",{value:thang,onChange:e=>setThang(+e.target.value),style:{...IS,width:"100%"}},
+              [1,2,3,4,5,6,7,8,9,10,11,12].map(m=>/*#__PURE__*/React.createElement("option",{key:m,value:m},"Tháng "+m))
+            )
+          ),
+          /*#__PURE__*/React.createElement("div",null,
+            /*#__PURE__*/React.createElement("div",{style:{fontSize:9,color:C.sub,marginBottom:4}},"NĂM"),
+            /*#__PURE__*/React.createElement("select",{value:nam,onChange:e=>setNam(+e.target.value),style:{...IS,width:"100%"}},
+              [2024,2025,2026].map(y=>/*#__PURE__*/React.createElement("option",{key:y,value:y},y))
+            )
+          )
+        )
+      ),
+      /*#__PURE__*/React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}},
+        /*#__PURE__*/React.createElement(StatCard,{label:"Tổng SV",val:statsThang.total,color:C.accent,icon:"📋"}),
+        /*#__PURE__*/React.createElement(StatCard,{label:"HT "+Math.round(statsThang.total>0?statsThang.hoan/statsThang.total*100:0)+"%",val:statsThang.hoan,color:"#22c55e",icon:"✅"}),
+        /*#__PURE__*/React.createElement(StatCard,{label:"Tổng SC",val:fmtK(statsThang.tongSC),color:C.yellow,icon:"💰"}),
+        /*#__PURE__*/React.createElement(StatCard,{label:"Còn nợ TX",val:fmtK(statsThang.conNo),color:statsThang.conNo>0?C.red:C.accent,icon:"💸"})
+      ),
+      byLoaiThang.length>0&&/*#__PURE__*/React.createElement("div",{style:{background:C.card,borderRadius:10,padding:"10px 12px",marginBottom:8,border:`1px solid ${C.border}`}},
+        /*#__PURE__*/React.createElement("div",{style:{fontSize:10,color:C.sub,marginBottom:6,fontWeight:700}},"PHÂN LOẠI SỰ VỤ"),
+        byLoaiThang.map(x=>/*#__PURE__*/React.createElement("div",{key:x.k,style:{display:"flex",justifyContent:"space-between",padding:"3px 0",fontSize:12}},
+          /*#__PURE__*/React.createElement("span",{style:{color:C.text}},[x.v.icon," ",x.v.label]),
+          /*#__PURE__*/React.createElement("span",{style:{color:C.accent,fontWeight:700}},x.count," vụ")
+        ))
+      ),
+      vctnListThang.length>0&&/*#__PURE__*/React.createElement("div",{style:{background:C.card,borderRadius:10,padding:"10px 12px",marginBottom:8,border:`1px solid #ef444422`}},
+        /*#__PURE__*/React.createElement("div",{style:{fontSize:10,color:C.red,marginBottom:6,fontWeight:700}},["💥 PHÂN TÍCH VCTN (",vctnListThang.length," vụ)"]),
+        /*#__PURE__*/React.createElement("div",{style:{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}},
+          /*#__PURE__*/React.createElement("span",{style:{color:C.sub}},"Chủ quan"),
+          /*#__PURE__*/React.createElement("span",{style:{color:C.red,fontWeight:700}},vctnListThang.filter(s=>s.nhomLoi==="Chủ quan").length," vụ")
+        ),
+        /*#__PURE__*/React.createElement("div",{style:{display:"flex",justifyContent:"space-between",fontSize:12}},
+          /*#__PURE__*/React.createElement("span",{style:{color:C.sub}},"Khách quan"),
+          /*#__PURE__*/React.createElement("span",{style:{color:C.yellow,fontWeight:700}},vctnListThang.filter(s=>s.nhomLoi==="Khách quan").length," vụ")
+        )
+      ),
+      byToThang.filter(x=>x.count>0).length>0&&/*#__PURE__*/React.createElement("div",{style:{background:C.card,borderRadius:10,padding:"10px 12px",marginBottom:12,border:`1px solid ${C.border}`}},
+        /*#__PURE__*/React.createElement("div",{style:{fontSize:10,color:C.sub,marginBottom:6,fontWeight:700}},"HIỆU SUẤT THEO TỔ"),
+        byToThang.filter(x=>x.count>0).map(x=>{
+          const htCount=dataThang.filter(s=>s.to===x.m.to&&s.trangThai==="hoan_thanh").length;
+          const rate=x.count>0?Math.round(htCount/x.count*100):100;
+          return /*#__PURE__*/React.createElement("div",{key:x.m.to,style:{padding:"4px 0",borderBottom:`1px solid ${C.border}`,fontSize:12}},
+            /*#__PURE__*/React.createElement("div",{style:{display:"flex",justifyContent:"space-between"}},
+              /*#__PURE__*/React.createElement("span",{style:{color:x.m.mau,fontWeight:700}},[x.m.ten," (",x.m.chuc,")"]),
+              /*#__PURE__*/React.createElement("span",{style:{color:C.accent}},x.count," vụ | HT: ",rate,"%")
+            ),
+            x.cn>0&&/*#__PURE__*/React.createElement("div",{style:{color:C.red,fontSize:11,marginTop:2}},["💸 Còn nợ: ",fmtK(x.cn)])
+          );
+        })
+      ),
+      /*#__PURE__*/React.createElement("button",{onClick:doCopy,style:{width:"100%",background:"rgba(45,204,211,0.12)",border:`2px solid ${C.accent}44`,borderRadius:12,padding:12,color:C.accent,fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:"inherit",marginBottom:8}},
+        copied?"✅ Đã copy! Paste vào Zalo nhóm":"📋 Copy báo cáo tháng → Zalo"
+      ),
+      showText&&/*#__PURE__*/React.createElement("textarea",{readOnly:true,value:genThangText(dataThang,thang,nam),rows:15,style:{width:"100%",background:"#071E20",border:`1px solid ${C.border}`,borderRadius:8,color:C.text,padding:10,fontSize:11,fontFamily:"monospace",resize:"vertical"}})
+    )
+  );
+}
+
+// ── MAIN ─────────────────────────────────────────────────────────────────────
+// ── BHTV SEARCH ──────────────────────────────────────────────────────────────
+const FB_BHVC_URL = "https://suco-07-default-rtdb.asia-southeast1.firebasedatabase.app/bhvc";
+let _bhvcCache = null;
+async function bhvcFetch() {
+  if (_bhvcCache) return _bhvcCache;
+  try {
+    const r = await fetch(FB_BHVC_URL + '.json');
+    _bhvcCache = await r.json() || {};
+  } catch { _bhvcCache = {}; }
+  return _bhvcCache;
+}
+
+function BHTVSearch() {
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [expanded, setExpanded] = useState(null);
+  const [sortBy, setSortBy] = useState("hhBHVC");
+  const [filterHH, setFilterHH] = useState("ALL");
+  const [copied, setCopied] = useState(false);
+
+  const norm = s => (s||'').replace(/[.\-\s]/g,'').toUpperCase();
+
+  const daysDiff = dateStr => {
+    if (!dateStr) return null;
+    let d;
+    if (dateStr.includes('/')) {
+      const [dd,mm,yyyy] = dateStr.split('/');
+      d = new Date(`${yyyy}-${mm}-${dd}`);
+    } else {
+      d = new Date(dateStr);
+    }
+    if (isNaN(d)) return null;
+    return Math.floor((d - new Date()) / 86400000);
+  };
+
+  const bhStatus = dateStr => {
+    const diff = daysDiff(dateStr);
+    if (diff === null) return {label:"Chưa có dữ liệu", color:"#475569", dot:"⚫"};
+    if (diff < 0)   return {label:`Đã HẾT HẠN ${Math.abs(diff)} ngày`, color:C.red, dot:"🔴"};
+    if (diff <= 30) return {label:`Còn ${diff} ngày ⚠️`, color:"#f59e0b", dot:"🟡"};
+    return {label:`Còn ${diff} ngày`, color:"#22c55e", dot:"🟢"};
+  };
+
+  const runSearch = async (filt=filterHH, qv=q) => {
+    setLoading(true); setSearched(true); setExpanded(null);
+    // Load /bhvc (chính) + /vehicles (tham chiếu tổ/tài xế)
+    const [bhvcDb, vehDb] = await Promise.all([bhvcFetch(), vehFetch()]);
+    const vehArr = Object.values(vehDb||{});
+
+    // Ghép: BH data từ /bhvc + tổ/TX từ /vehicles
+    const all = Object.values(bhvcDb||{}).filter(Boolean).map(b => {
+      const bsn = norm(b.bks||'');
+      const veh = vehArr.find(v => norm(v.bienSo||'') === bsn) || {};
+      return {
+        bienSo: b.bks || b.bienSo || '',
+        loaiXe: b.xe || veh.loaiXe || '',
+        bhDV: b.bh || '',
+        phamViBH: b.pv || '',
+        ngayKyBHVC: b.tu || '',
+        ngayHetHanBHVC: b.den || '',  // YYYY-MM-DD từ /bhvc
+        sdtBH: b.sdt || '',
+        soKhung: b.vin || veh.soKhung || '',
+        to: veh.to || '',
+        tenTX: veh.tenTX || veh.taiXe || '',
+        ngayHetHanBHTNDS: veh.ngayHetHanBHTNDS || '',
+        hanDangKiem: veh.hanDangKiem || '',
+      };
+    });
+
+    let res = !qv.trim() ? all : all.filter(v => {
+      const qn = norm(qv);
+      return norm(v.bienSo).includes(qn)||norm(v.tenTX||'').includes(qn)||
+             norm(v.to||'').includes(qn)||norm(v.bhDV||'').includes(qn);
+    });
+    if (filt !== "ALL") res = res.filter(v => {
+      const diff = daysDiff(v.ngayHetHanBHVC);
+      if (filt==="het") return diff!==null&&diff<0;
+      if (filt==="sap") return diff!==null&&diff>=0&&diff<=30;
+      if (filt==="con") return diff!==null&&diff>30;
+      return true;
+    });
+    res = [...res].sort((a,b) => {
+      if (sortBy==="bienSo") return norm(a.bienSo).localeCompare(norm(b.bienSo));
+      if (sortBy==="to")     return norm(a.to||'').localeCompare(norm(b.to||''));
+      const da=daysDiff(a.ngayHetHanBHVC); const db2=daysDiff(b.ngayHetHanBHVC);
+      return (da??99999)-(db2??99999);
+    });
+    setResults(res); setLoading(false);
+  };
+
+  const quickFilter = filt => { setFilterHH(filt); setQ(""); runSearch(filt,""); };
+
+  const stats = (() => {
+    const het = results.filter(v=>{const d=daysDiff(v.ngayHetHanBHVC);return d!==null&&d<0;});
+    const sap = results.filter(v=>{const d=daysDiff(v.ngayHetHanBHVC);return d!==null&&d>=0&&d<=30;});
+    const ok  = results.filter(v=>{const d=daysDiff(v.ngayHetHanBHVC);return d!==null&&d>30;});
+    return {total:results.length,het:het.length,sap:sap.length,ok:ok.length};
+  })();
+
+  const copyReport = () => {
+    const het = results.filter(v=>{const d=daysDiff(v.ngayHetHanBHVC);return d!==null&&d<0;});
+    const sap = results.filter(v=>{const d=daysDiff(v.ngayHetHanBHVC);return d!==null&&d>=0&&d<=30;});
+    const L=[];
+    L.push(`🛡️ BÁO CÁO BHVC – OCP.DOIXE07`);
+    L.push(`📅 Ngày: ${fmtDate(today())}`);
+    L.push(`━━━━━━━━━━━━━━━━━━━━━━`);
+    L.push(`📊 TỔNG HỢP (${results.length} xe)`);
+    L.push(`🔴 Đã hết hạn: ${het.length} xe`);
+    L.push(`🟡 Sắp hết (≤30 ngày): ${sap.length} xe`);
+    L.push(`🟢 Còn hạn: ${stats.ok} xe`);
+    if(het.length>0){L.push('');L.push('🔴 ĐÃ HẾT HẠN:');het.forEach(v=>L.push(`  • ${v.bienSo} · ${v.tenTX||'—'} · ${v.to||'—'} · HH: ${v.ngayHetHanBHVC||'—'}`));}
+    if(sap.length>0){L.push('');L.push('🟡 SẮP HẾT (≤30 NGÀY):');sap.forEach(v=>{const d=daysDiff(v.ngayHetHanBHVC);L.push(`  • ${v.bienSo} · ${v.tenTX||'—'} · Còn ${d} ngày · HH: ${v.ngayHetHanBHVC||'—'}`);});}
+    L.push('');L.push('━━━━━━━━━━━━━━━━━━━━━━');L.push('📍 OCP.DOIXE07 · Depot Hà Nội 1');
+    navigator.clipboard.writeText(L.join('\n')).catch(()=>{});
+    setCopied(true); setTimeout(()=>setCopied(false),2500);
+  };
+
+  const IS = {background:C.card,border:`1px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 11px",fontSize:13,outline:"none",fontFamily:"inherit"};
+  const FilterBtn = ({id,label,color}) => /*#__PURE__*/React.createElement("button",{
+    onClick:()=>quickFilter(id),
+    style:{flex:1,padding:"5px 2px",background:filterHH===id?(color+"22"):"none",border:`1px solid ${filterHH===id?color:C.border}`,borderRadius:7,color:filterHH===id?color:C.sub,fontSize:10,fontWeight:filterHH===id?800:500,cursor:"pointer",fontFamily:"inherit"}
+  },label);
+
+  const loaiMap = {MINIOGREEN:'VF5',LIMOGREEN:'VF8',VFE34:'VFE34',VF5:'VF5',HERIOGREEN:'VF5',MINIOGREENPLUS:'VF5'};
+
+  return /*#__PURE__*/React.createElement("div",{style:{padding:"14px 14px 90px"}},
+
+    /*#__PURE__*/React.createElement("div",{style:{marginBottom:12}},
+      /*#__PURE__*/React.createElement("div",{style:{fontSize:15,fontWeight:800,color:"#fff",marginBottom:2}},"🛡️ Bảo hiểm thân vỏ"),
+      /*#__PURE__*/React.createElement("div",{style:{fontSize:11,color:C.sub}},"Tra cứu BHVC · TNDS · Đăng kiểm theo xe / tài xế / tổ")
+    ),
+
+    /*#__PURE__*/React.createElement("div",{style:{display:"flex",gap:8,marginBottom:10}},
+      /*#__PURE__*/React.createElement("input",{type:"text",value:q,onChange:e=>setQ(e.target.value),onKeyDown:e=>e.key==="Enter"&&runSearch(),placeholder:"Biển số, tên TX, tổ, công ty BH...",style:{...IS,flex:1}}),
+      /*#__PURE__*/React.createElement("button",{onClick:()=>runSearch(),style:{background:C.accent,color:"#fff",border:"none",borderRadius:8,padding:"0 16px",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:"inherit",flexShrink:0}},loading?"⏳":"🔍")
+    ),
+
+    /*#__PURE__*/React.createElement("div",{style:{display:"flex",gap:6,marginBottom:8}},
+      /*#__PURE__*/React.createElement(FilterBtn,{id:"ALL",label:"Tất cả",color:C.accent}),
+      /*#__PURE__*/React.createElement(FilterBtn,{id:"het",label:"🔴 Hết hạn",color:C.red}),
+      /*#__PURE__*/React.createElement(FilterBtn,{id:"sap",label:"🟡 ≤30 ngày",color:"#f59e0b"}),
+      /*#__PURE__*/React.createElement(FilterBtn,{id:"con",label:"🟢 Còn hạn",color:"#22c55e"})
+    ),
+
+    /*#__PURE__*/React.createElement("div",{style:{display:"flex",gap:6,marginBottom:12,alignItems:"center"}},
+      /*#__PURE__*/React.createElement("span",{style:{fontSize:10,color:C.sub,flexShrink:0}},"Sắp xếp:"),
+      [["hhBHVC","Hết hạn gần nhất"],["bienSo","Biển số"],["to","Tổ"]].map(([s,l])=>
+        /*#__PURE__*/React.createElement("button",{key:s,onClick:()=>setSortBy(s),style:{padding:"4px 9px",background:sortBy===s?"#17666A":"none",border:`1px solid ${sortBy===s?C.accent:C.border}`,borderRadius:6,color:sortBy===s?C.accent:C.sub,fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:sortBy===s?700:400}},l)
+      )
+    ),
+
+    !searched && /*#__PURE__*/React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}},
+      /*#__PURE__*/React.createElement("button",{onClick:()=>quickFilter("het"),style:{padding:"14px 10px",background:"rgba(239,68,68,0.08)",border:"1px solid #ef444433",borderRadius:12,color:"#fca5a5",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},["🔴 Xem xe",/*#__PURE__*/React.createElement("br",null),"hết hạn BHVC"]),
+      /*#__PURE__*/React.createElement("button",{onClick:()=>quickFilter("sap"),style:{padding:"14px 10px",background:"rgba(245,158,11,0.08)",border:"1px solid #f59e0b33",borderRadius:12,color:"#fcd34d",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},["🟡 Sắp hết",/*#__PURE__*/React.createElement("br",null),"≤ 30 ngày"]),
+      /*#__PURE__*/React.createElement("button",{onClick:()=>{setFilterHH("ALL");setQ("");runSearch("ALL","");},style:{padding:"14px 10px",background:"rgba(45,204,211,0.08)",border:"1px solid #2DCCD333",borderRadius:12,color:C.accent,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",gridColumn:"1/-1"}},["📋 Xem toàn bộ danh sách xe"])
+    ),
+
+    searched && results.length>0 && /*#__PURE__*/React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6,marginBottom:10}},
+      [{l:"Tổng",v:stats.total,c:C.accent},{l:"🔴 Hết",v:stats.het,c:C.red},{l:"🟡 Sắp",v:stats.sap,c:"#f59e0b"},{l:"🟢 OK",v:stats.ok,c:"#22c55e"}]
+      .map(x=>/*#__PURE__*/React.createElement("div",{key:x.l,style:{background:C.card,borderRadius:8,padding:"8px 4px",textAlign:"center",border:`1px solid ${x.c}22`}},
+        /*#__PURE__*/React.createElement("div",{style:{fontSize:20,fontWeight:800,color:x.c}},x.v),
+        /*#__PURE__*/React.createElement("div",{style:{fontSize:9,color:C.sub}},x.l)
+      ))
+    ),
+
+    searched && results.length>0 && /*#__PURE__*/React.createElement("button",{onClick:copyReport,style:{width:"100%",background:"rgba(45,204,211,0.1)",border:`1px solid ${C.accent}44`,borderRadius:10,padding:"9px 12px",color:copied?"#22c55e":C.accent,fontSize:12,fontWeight:800,cursor:"pointer",fontFamily:"inherit",marginBottom:12}},
+      copied?"✅ Đã copy báo cáo BHVC!":"📋 Copy báo cáo BHVC → Zalo"
+    ),
+
+    searched && results.length===0 && /*#__PURE__*/React.createElement("div",{style:{textAlign:"center",color:C.sub,padding:"40px 0",fontSize:13}},"Không tìm thấy xe nào phù hợp"),
+
+    results.map(v => {
+      const stBHVC  = bhStatus(v.ngayHetHanBHVC);
+      const stBHTNDS= bhStatus(v.ngayHetHanBHTNDS);
+      const stDK    = bhStatus(v.hanDangKiem);
+      const isExp   = expanded===v.bienSo;
+      const loai    = loaiMap[v.loaiXe]||v.loaiXe||'';
+
+      return /*#__PURE__*/React.createElement("div",{key:v.bienSo,style:{background:C.card,borderRadius:12,marginBottom:8,border:`1px solid ${stBHVC.color}44`,overflow:"hidden"}},
+
+        /*#__PURE__*/React.createElement("div",{onClick:()=>setExpanded(isExp?null:v.bienSo),style:{padding:"11px 13px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}},
+          /*#__PURE__*/React.createElement("div",{style:{flex:1}},
+            /*#__PURE__*/React.createElement("div",{style:{fontSize:14,fontWeight:800,color:"#fff",marginBottom:1}},[stBHVC.dot," ",v.bienSo,loai?/*#__PURE__*/React.createElement("span",{style:{fontSize:10,color:C.sub,fontWeight:400}}," · "+loai):""],),
+            /*#__PURE__*/React.createElement("div",{style:{fontSize:11,color:C.sub,marginBottom:3}},[(v.tenTX||"—")," · ",(v.to||"—")]),
+            /*#__PURE__*/React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},
+              /*#__PURE__*/React.createElement("span",{style:{fontSize:11,color:stBHVC.color,fontWeight:700}},["BHVC: ",stBHVC.label]),
+              v.bhDV&&/*#__PURE__*/React.createElement("span",{style:{fontSize:9,color:C.sub,background:C.bg,padding:"1px 6px",borderRadius:8}},v.bhDV.slice(0,16))
+            )
+          ),
+          /*#__PURE__*/React.createElement("span",{style:{fontSize:12,color:C.sub,marginLeft:8}},isExp?"▲":"▼")
+        ),
+
+        isExp && /*#__PURE__*/React.createElement("div",{style:{padding:"0 13px 14px",borderTop:`1px solid ${C.border}`}},
+          /*#__PURE__*/React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:10}},
+
+            /*#__PURE__*/React.createElement("div",{style:{background:C.bg,borderRadius:8,padding:"10px 11px",border:`1px solid ${stBHVC.color}44`,gridColumn:"1/-1"}},
+              /*#__PURE__*/React.createElement("div",{style:{fontSize:9,fontWeight:800,color:stBHVC.color,letterSpacing:.6,marginBottom:7}},"🛡️ BẢO HIỂM THÂN VỎ (BHVC)"),
+              [["Công ty BH",v.bhDV],["Phạm vi BH",v.phamViBH],["Ngày ký",v.ngayKyBHVC||v.ngayKyBH],["Hết hạn",v.ngayHetHanBHVC]]
+              .map(([l,val])=>/*#__PURE__*/React.createElement("div",{key:l,style:{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3}},
+                /*#__PURE__*/React.createElement("span",{style:{color:C.sub}},l),
+                /*#__PURE__*/React.createElement("span",{style:{color:l==="Hết hạn"?stBHVC.color:"#fff",fontWeight:l==="Hết hạn"?800:500}},[(val||"—"),l==="Hết hạn"?/*#__PURE__*/React.createElement("span",{style:{color:stBHVC.color,marginLeft:6,fontSize:11}},stBHVC.label):""])
+              ))
+            ),
+
+            /*#__PURE__*/React.createElement("div",{style:{background:C.bg,borderRadius:8,padding:"10px 11px",border:`1px solid ${stBHTNDS.color}44`}},
+              /*#__PURE__*/React.createElement("div",{style:{fontSize:9,fontWeight:800,color:stBHTNDS.color,letterSpacing:.6,marginBottom:6}},"📋 BH TNDS"),
+              [["Ngày ký",v.ngayKyBHTNDS],["Hết hạn",v.ngayHetHanBHTNDS]].map(([l,val])=>
+                /*#__PURE__*/React.createElement("div",{key:l,style:{fontSize:11,marginBottom:2}},
+                  /*#__PURE__*/React.createElement("span",{style:{color:C.sub}},l+": "),
+                  /*#__PURE__*/React.createElement("span",{style:{color:l==="Hết hạn"?stBHTNDS.color:"#cbd5e1",fontWeight:l==="Hết hạn"?700:400}},val||"—")
+                )
+              )
+            ),
+
+            /*#__PURE__*/React.createElement("div",{style:{background:C.bg,borderRadius:8,padding:"10px 11px",border:`1px solid ${stDK.color}44`}},
+              /*#__PURE__*/React.createElement("div",{style:{fontSize:9,fontWeight:800,color:stDK.color,letterSpacing:.6,marginBottom:6}},"🔩 ĐĂNG KIỂM"),
+              /*#__PURE__*/React.createElement("div",{style:{fontSize:11,color:"#cbd5e1"}},v.hanDangKiem||"—"),
+              v.hanDangKiem&&/*#__PURE__*/React.createElement("div",{style:{fontSize:11,color:stDK.color,fontWeight:700,marginTop:2}},stDK.label)
+            )
+          ),
+
+          v.soKhung&&/*#__PURE__*/React.createElement("div",{style:{marginTop:8,fontSize:10,color:C.sub}},["Số khung: ",v.soKhung]),
+
+          /*#__PURE__*/React.createElement("button",{
+            onClick:()=>{
+              const txt=[
+                `🛡️ THÔNG TIN BH XE ${v.bienSo}`,`━━━━━━━━━━━━━━━━`,
+                ` 👤 TX: ${v.tenTX||"—"} · ${v.to||"—"}`,
+                ` 🚗 Xe: ${v.bienSo}${loai?" · "+loai:""}`,``,
+                ` 🛡️ BHVC: ${v.bhDV||"—"}`,
+                `   • Ngày ký: ${v.ngayKyBHVC||v.ngayKyBH||"—"}`,
+                `   • Hết hạn: ${v.ngayHetHanBHVC||"—"} (${stBHVC.label})`,
+                `   • Phạm vi: ${v.phamViBH||"—"}`,``,
+                ` 📋 TNDS:`,
+                `   • Ngày ký: ${v.ngayKyBHTNDS||"—"}`,
+                `   • Hết hạn: ${v.ngayHetHanBHTNDS||"—"} (${stBHTNDS.label})`,
+                v.hanDangKiem?` 🔩 Đăng kiểm HH: ${v.hanDangKiem} (${stDK.label})`:"",
+                `━━━━━━━━━━━━━━━━`,`📍 OCP.DOIXE07`
+              ].filter(Boolean).join('\n');
+              navigator.clipboard.writeText(txt).catch(()=>{});
+            },
+            style:{marginTop:10,width:"100%",background:"#17666A55",border:`1px solid ${C.accent}44`,borderRadius:8,padding:"7px 0",color:C.accent,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}
+          },"📋 Copy thông tin BH xe này → Zalo")
+        )
+      );
+    })
+  );
+}
+
+function App() {
+  const [svList, setSvList] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const [view, setView] = useState("dashboard");
+  const [chiTiet, setChiTiet] = useState(null);
+  const [formData, setFormData] = useState(null);
+  const [showTX, setShowTX] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
+  const [showBHTV, setShowBHTV] = useState(false);
+  const [showTeam, setShowTeam] = useState(false);
+  const [filterLoai, setFilterLoai] = useState("ALL");
+  const [filterTT, setFilterTT] = useState("ALL");
+  useEffect(() => {
+    cloudLoad().then(cloudData => {
+      if (cloudData && cloudData.length > 0) {
+        setSvList(cloudData);
+        try { localStorage.setItem("ocp07_sv5", JSON.stringify(cloudData)); } catch {}
+      } else {
+        try { const s = localStorage.getItem("ocp07_sv5"); if (s) setSvList(JSON.parse(s)); } catch {}
+      }
+    }).catch(() => {
+      try { const s = localStorage.getItem("ocp07_sv5"); if (s) setSvList(JSON.parse(s)); } catch {}
+    }).finally(() => {
+      setLoaded(true);
+      const ld = document.getElementById("ld");
+      if (ld) ld.style.display = "none";
+    });
+  }, []);
+  useEffect(() => {
+    if (!loaded) return;
+    try {
+      localStorage.setItem("ocp07_sv5", JSON.stringify(svList));
+    } catch {}
+  }, [svList, loaded]);
+  const saveSv = sv => {
+    setSvList(p => p.find(s => s.id === sv.id) ? p.map(s => s.id === sv.id ? sv : s) : [sv, ...p]);
+    if (chiTiet?.id === sv.id) setChiTiet(sv);
+    setFormData(null);
+    setShowTX(false);
+    cloudSave(sv);
+  };
+  const active = svList.filter(s => s.trangThai !== "hoan_thanh");
+  const done = svList.filter(s => s.trangThai === "hoan_thanh");
+  const conNoTotal = svList.reduce((acc, s) => acc + Math.max(0, (s.txTraTT || 0) - ((s.daThuTXNH || 0) + (s.daThuTXLuong || 0) + (s.daThuTXCoc || 0))), 0);
+  const filtered = svList.filter(s => (filterLoai === "ALL" || s.loai === filterLoai) && (filterTT === "ALL" || s.trangThai === filterTT));
+  const navBtn = (v, label, icon) => /*#__PURE__*/React.createElement("button", {
+    onClick: () => setView(v),
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      gap: 3,
+      background: "none",
+      border: "none",
+      color: view === v ? C.accent : C.sub,
+      cursor: "pointer",
+      padding: "8px 10px",
+      fontFamily: "inherit"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 19
+    }
+  }, icon), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 9,
+      fontWeight: view === v ? 700 : 400
+    }
+  }, label));
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("style", null, `
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+        body{background:${C.bg};font-family:'Nunito',sans-serif;}
+        ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-thumb{background:#1e293b;border-radius:4px;}
+        input,select,textarea,button{font-family:'Nunito',sans-serif;}
+        input:focus,select:focus,textarea:focus{border-color:#22c55e!important;outline:none;}
+      `), /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: "100dvh",
+      display: "flex",
+      flexDirection: "column",
+      maxWidth: 740,
+      margin: "0 auto",
+      background: C.bg
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "12px 16px",
+      background: "rgba(11,51,53,0.97)",
+      borderBottom: `1px solid ${C.border}`,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 15,
+      fontWeight: 700,
+      color: "#FFFFFF"
+    }
+  }, "\uD83D\uDE96 S\u1EF1 v\u1EE5 OCP07"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: C.sub
+    }
+  }, "Depot H\xE0 N\u1ED9i 1 \xB7 ", active.length, " \u0111ang x\u1EED l\xFD")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 7
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowTeam(p => !p),
+    style: {
+      background: "#17666A55",
+      border: "none",
+      color: "#57D6DC",
+      borderRadius: 8,
+      padding: "7px 11px",
+      cursor: "pointer",
+      fontSize: 12,
+      fontFamily: "inherit"
+    }
+  }, "\uD83D\uDC65"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setFormData({}),
+    style: {
+      background: "#2DCCD3",
+      color: "#fff",
+      border: "none",
+      borderRadius: 8,
+      padding: "7px 12px",
+      fontSize: 12,
+      fontWeight: 700,
+      cursor: "pointer",
+      fontFamily: "inherit"
+    }
+  }, "+ T\u1EA1o"))), showTeam && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#061C1F",
+      borderBottom: `1px solid ${C.border}`,
+      padding: "10px 14px",
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: C.sub,
+      letterSpacing: 1,
+      marginBottom: 8
+    }
+  }, "\u0110\u1ED8I XE OCP07"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      overflowX: "auto",
+      paddingBottom: 4
+    }
+  }, TEAM.map(m => /*#__PURE__*/React.createElement("div", {
+    key: m.ten,
+    style: {
+      background: C.card,
+      borderRadius: 10,
+      padding: "8px 11px",
+      flexShrink: 0,
+      border: `1px solid ${m.mau}33`,
+      minWidth: 110
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: m.mau
+    }
+  }, m.ten), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: C.sub,
+      marginBottom: 4
+    }
+  }, m.chuc, m.phuTrach ? ` · ${m.phuTrach}` : ""), /*#__PURE__*/React.createElement("a", {
+    href: `tel:${m.sdt}`,
+    style: {
+      fontSize: 11,
+      color: C.accent,
+      textDecoration: "none",
+      fontWeight: 600
+    }
+  }, m.sdt))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      overflowY: "auto",
+      padding: 14
+    }
+  }, view === "report" && /*#__PURE__*/React.createElement(BaoCao, {
+    svList: svList
+  }), view === "bhtv" && /*#__PURE__*/React.createElement(BHTVSearch, null), view === "dashboard" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 10,
+      marginBottom: 14
+    }
+  }, [{
+    l: "Tổng sự vụ",
+    v: svList.length,
+    c: C.blue,
+    i: "📋"
+  }, {
+    l: "Đang xử lý",
+    v: active.length,
+    c: C.yellow,
+    i: "⚡"
+  }, {
+    l: "Hoàn thành",
+    v: done.length,
+    c: C.accent,
+    i: "✅"
+  }, {
+    l: "Còn nợ TX",
+    v: fmtK(conNoTotal),
+    c: conNoTotal > 0 ? C.red : C.accent,
+    i: "💸"
+  }].map(({
+    l,
+    v,
+    c,
+    i
+  }) => /*#__PURE__*/React.createElement("div", {
+    key: l,
+    style: {
+      background: C.card,
+      borderRadius: 12,
+      padding: "12px 14px",
+      border: `1px solid ${c}22`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 18
+    }
+  }, i), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 24,
+      fontWeight: 800,
+      color: c,
+      lineHeight: 1.2,
+      margin: "3px 0"
+    }
+  }, v), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: C.sub
+    }
+  }, l)))), (()=>{
+    var nguyHiem=active.filter(function(s){return daysSince(s.ngayTao)>=7;}).sort(function(a,b){return daysSince(b.ngayTao)-daysSince(a.ngayTao);}).slice(0,5);
+    var xeXuong=active.filter(function(s){return s.loai==="XE_XUONG"||s.xeVaoXuong;}).slice(0,4);
+    var xongTot=done.filter(function(s){
+      if(!s.ngaySuaXong||!s.ngayTao)return false;
+      var dur=Math.floor((new Date(s.ngaySuaXong)-new Date(s.ngayTao))/86400000);
+      return dur<=5&&daysSince(s.ngaySuaXong)<=14;
+    }).slice(0,3);
+    if(!nguyHiem.length&&!xeXuong.length&&!xongTot.length)return null;
+    return /*#__PURE__*/React.createElement("div",{style:{marginBottom:12}},
+      /*#__PURE__*/React.createElement("div",{style:{fontSize:9,color:C.sub,letterSpacing:1,marginBottom:8,fontWeight:700}},"\u26A0\uFE0F C\u1EA2NH B\xC1O & TH\xDA C\u1EA6N X\u1EEC L\xDD"),
+      nguyHiem.length>0&&/*#__PURE__*/React.createElement("div",{style:{background:"rgba(239,68,68,0.07)",border:"1px solid #ef444433",borderRadius:10,padding:"10px 12px",marginBottom:8}},
+        /*#__PURE__*/React.createElement("div",{style:{fontSize:10,fontWeight:800,color:C.red,marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}},
+          /*#__PURE__*/React.createElement("span",null,"\uD83D\uDD34 N\u1EB6M L\xC2U — CH\u01AF A X\u1EEC L\xDD"),
+          /*#__PURE__*/React.createElement("span",{style:{background:C.red+"22",padding:"1px 8px",borderRadius:10,fontSize:10}},nguyHiem.length," SV")
+        ),
+        nguyHiem.map(function(s){return /*#__PURE__*/React.createElement("div",{key:s.id,onClick:function(){setChiTiet(s);},style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:"1px solid #ef444418",cursor:"pointer"}},
+          /*#__PURE__*/React.createElement("div",null,
+            /*#__PURE__*/React.createElement("div",{style:{fontSize:12,color:"#fca5a5",fontWeight:700}},s.bienSo||s.taiXe||s.id),
+            /*#__PURE__*/React.createElement("div",{style:{fontSize:10,color:C.sub}},((LOAI_SU_VU[s.loai]||{}).icon||"")," ",((LOAI_SU_VU[s.loai]||{}).label||s.loai)," · ",((getBuoc(s.loai).find(function(b){return b.id===s.buocHienTai;})||{}).label||"—"))
+          ),
+          /*#__PURE__*/React.createElement("span",{style:{fontSize:12,color:C.red,fontWeight:800,background:C.red+"11",padding:"3px 8px",borderRadius:8,flexShrink:0}},"\u23F1 ",daysSince(s.ngayTao),"ng")
+        );})),
+      xeXuong.length>0&&/*#__PURE__*/React.createElement("div",{style:{background:"rgba(255,140,66,0.07)",border:"1px solid #FF8C4233",borderRadius:10,padding:"10px 12px",marginBottom:8}},
+        /*#__PURE__*/React.createElement("div",{style:{fontSize:10,fontWeight:800,color:"#FF8C42",marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}},
+          /*#__PURE__*/React.createElement("span",null,"\uD83D\uDD28 XE \u0110ANG T\u1EA0I X\u01AF\u1EDENG"),
+          /*#__PURE__*/React.createElement("span",{style:{background:"#FF8C4222",padding:"1px 8px",borderRadius:10,fontSize:10}},xeXuong.length," xe")
+        ),
+        xeXuong.map(function(s){return /*#__PURE__*/React.createElement("div",{key:s.id,onClick:function(){setChiTiet(s);},style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:"1px solid #FF8C4218",cursor:"pointer"}},
+          /*#__PURE__*/React.createElement("div",null,
+            /*#__PURE__*/React.createElement("div",{style:{fontSize:12,color:"#fdba74",fontWeight:700}},s.bienSo||s.taiXe),
+            /*#__PURE__*/React.createElement("div",{style:{fontSize:10,color:C.sub}},s.tenXuong||s.xuongDuKien||s.xuong||"Xưởng đang xử lý")
+          ),
+          /*#__PURE__*/React.createElement("span",{style:{fontSize:11,color:"#FF8C42",fontWeight:700}},"\u23F1 ",daysSince(s.ngayTao),"ng")
+        );})),
+      xongTot.length>0&&/*#__PURE__*/React.createElement("div",{style:{background:"rgba(45,204,211,0.07)",border:"1px solid #2DCCD333",borderRadius:10,padding:"10px 12px"}},
+        /*#__PURE__*/React.createElement("div",{style:{fontSize:10,fontWeight:800,color:C.accent,marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}},
+          /*#__PURE__*/React.createElement("span",null,"\u2705 HO\xC0N TH\xC0NH \u0110\xDANG TI\u1EECN \u0110\u1ED8"),
+          /*#__PURE__*/React.createElement("span",{style:{background:C.accent+"22",padding:"1px 8px",borderRadius:10,fontSize:10}},xongTot.length," SV")
+        ),
+        xongTot.map(function(s){
+          var dur=s.ngaySuaXong?Math.floor((new Date(s.ngaySuaXong)-new Date(s.ngayTao))/86400000):0;
+          return /*#__PURE__*/React.createElement("div",{key:s.id,onClick:function(){setChiTiet(s);},style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:"1px solid #2DCCD318",cursor:"pointer"}},
+            /*#__PURE__*/React.createElement("div",null,
+              /*#__PURE__*/React.createElement("div",{style:{fontSize:12,color:C.accent,fontWeight:700}},s.bienSo||s.taiXe),
+              /*#__PURE__*/React.createElement("div",{style:{fontSize:10,color:C.sub}},((LOAI_SU_VU[s.loai]||{}).label)||s.loai)
+            ),
+            /*#__PURE__*/React.createElement("span",{style:{fontSize:11,color:C.accent,fontWeight:700}},"\u26A1 ",dur,"ng")
+          );
+        })
+      )
+    );
+  })(), active.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: C.sub,
+      letterSpacing: 1,
+      marginBottom: 10
+    }
+  }, "\u26A1 \u0110ANG X\u1EEC L\xDD (", active.length, ")"), active.sort((a, b) => daysSince(b.ngayTao) - daysSince(a.ngayTao)).map(sv => /*#__PURE__*/React.createElement(TimelineCard, {
+    key: sv.id,
+    sv: sv,
+    onClick: () => setChiTiet(sv)
+  }))), done.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: C.sub,
+      letterSpacing: 1,
+      margin: "14px 0 10px"
+    }
+  }, "\u2705 HO\xC0N TH\xC0NH (", done.length, ")"), done.slice(0, 3).map(sv => /*#__PURE__*/React.createElement(TimelineCard, {
+    key: sv.id,
+    sv: sv,
+    onClick: () => setChiTiet(sv)
+  }))), svList.length === 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      color: C.sub,
+      padding: 40,
+      fontSize: 13
+    }
+  }, "Ch\u01B0a c\xF3 s\u1EF1 v\u1EE5 n\xE0o.", /*#__PURE__*/React.createElement("br", null), "B\u1EA5m ", /*#__PURE__*/React.createElement("strong", null, "+ T\u1EA1o"), " \u0111\u1EC3 b\u1EAFt \u0111\u1EA7u.")), view === "list" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      marginBottom: 12,
+      flexWrap: "wrap"
+    }
+  }, /*#__PURE__*/React.createElement("select", {
+    value: filterLoai,
+    onChange: e => setFilterLoai(e.target.value),
+    style: {
+      background: C.card,
+      border: `1px solid ${C.border}`,
+      borderRadius: 8,
+      color: C.text,
+      padding: "6px 10px",
+      fontSize: 11,
+      outline: "none"
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "ALL"
+  }, "T\u1EA5t c\u1EA3 lo\u1EA1i"), Object.entries(LOAI_SU_VU).map(([k, v]) => /*#__PURE__*/React.createElement("option", {
+    key: k,
+    value: k
+  }, v.icon, " ", v.label))), /*#__PURE__*/React.createElement("select", {
+    value: filterTT,
+    onChange: e => setFilterTT(e.target.value),
+    style: {
+      background: C.card,
+      border: `1px solid ${C.border}`,
+      borderRadius: 8,
+      color: C.text,
+      padding: "6px 10px",
+      fontSize: 11,
+      outline: "none"
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "ALL"
+  }, "T\u1EA5t c\u1EA3 TT"), /*#__PURE__*/React.createElement("option", {
+    value: "dang_xu_ly"
+  }, "\u0110ang x\u1EED l\xFD"), /*#__PURE__*/React.createElement("option", {
+    value: "moi"
+  }, "M\u1EDBi (TX b\xE1o)"), /*#__PURE__*/React.createElement("option", {
+    value: "hoan_thanh"
+  }, "Ho\xE0n th\xE0nh"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: C.sub,
+      marginBottom: 10
+    }
+  }, filtered.length, " s\u1EF1 v\u1EE5"), filtered.map(sv => /*#__PURE__*/React.createElement(TimelineCard, {
+    key: sv.id,
+    sv: sv,
+    onClick: () => setChiTiet(sv)
+  })))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-around",
+      padding: "8px 0",
+      borderTop: `1px solid ${C.border}`,
+      background: C.bg,
+      flexShrink: 0
+    }
+  }, navBtn("dashboard", "Tổng quan", "📊"), navBtn("list", "Danh sách", "📋"), navBtn("report", "Báo cáo", "📈"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setView("bhtv"),
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      gap: 3,
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      padding: "8px 10px",
+      fontFamily: "inherit"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 44,
+      height: 44,
+      background: view === "bhtv" ? "linear-gradient(135deg,#2DCCD3,#17666A)" : "linear-gradient(135deg,#0B3335,#17666A)",
+      borderRadius: "50%",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: 20,
+      marginTop: -20,
+      boxShadow: view === "bhtv" ? "0 4px 14px rgba(45,204,211,0.5)" : "0 2px 8px rgba(0,0,0,0.3)",
+      border: view === "bhtv" ? "2px solid #2DCCD3" : "2px solid #17666A"
+    }
+  }, "\uD83D\uDEE1\uFE0F"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 9,
+      color: view === "bhtv" ? C.accent : C.sub,
+      fontWeight: view === "bhtv" ? 800 : 500
+    }
+  }, "BH Th\xE2n v\u1ECF")))), chiTiet && !formData && /*#__PURE__*/React.createElement(ChiTiet, {
+    sv: chiTiet,
+    onClose: () => setChiTiet(null),
+    onUpdate: sv => {
+      saveSv(sv);
+      setChiTiet(sv);
+    },
+    onEdit: () => setFormData(chiTiet)
+  }), formData !== null && /*#__PURE__*/React.createElement(FormGSVH, {
+    sv: Object.keys(formData).length > 0 ? formData : null,
+    onSave: saveSv,
+    onClose: () => setFormData(null)
+  }), showGuide && /*#__PURE__*/React.createElement("div", {
+    style:{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center"}
+  }, /*#__PURE__*/React.createElement("div", {
+    style:{background:C.bg,borderRadius:"20px 20px 0 0",width:"100%",maxWidth:740,maxHeight:"92vh",overflowY:"auto",border:"1px solid "+C.border}
+  }, /*#__PURE__*/React.createElement("div", {
+    style:{padding:"14px 18px",borderBottom:"1px solid "+C.border,display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,background:C.bg,zIndex:10}
+  }, /*#__PURE__*/React.createElement("div", null,
+    /*#__PURE__*/React.createElement("div", {style:{fontSize:16,fontWeight:800,color:"#fff"}}, "\uD83D\uDCD6 H\u01B0\u1EDBng d\u1EABn s\u1EED d\u1EE5ng"),
+    /*#__PURE__*/React.createElement("div", {style:{fontSize:11,color:C.sub}}, "doixeocp07.cloud \xB7 Depot H\xE0 N\u1ED9i 1")
+  ), /*#__PURE__*/React.createElement("button", {
+    onClick:function(){setShowGuide(false);},
+    style:{background:"#17666A55",border:"none",color:C.sub,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontSize:15,fontFamily:"inherit"}
+  }, "\u2715")),
+  /*#__PURE__*/React.createElement("div", {style:{padding:"14px 16px"}},
+    [
+      {icon:"\uD83D\uDE96",title:"T\u1ED5ng quan h\u1EC7 th\u1ED1ng",color:C.accent,items:[
+        "App GSVH: doixeocp07.cloud (file n\xE0y) — qu\u1EA3n l\xFD & theo d\xF5i",
+        "Form t\xE0i x\u1EBF: doixeocp07.cloud/tx-form.html — TX t\u1EF1 b\xE1o s\u1EF1 v\u1EE5",
+        "D\u1EEF li\u1EC7u l\u01B0u tr\xEAn Firebase Realtime DB — t\u1EF1 \u0111\u1ED3ng b\u1ED9 gi\u1EEFa thi\u1EBFt b\u1ECB"
+      ]},
+      {icon:"\uD83D\uDCCC",title:"6 lo\u1EA1i s\u1EF1 v\u1EE5",color:"#f97316",items:[
+        "\uD83D\uDCA5 VCTN — Va ch\u1EA1m tai n\u1EA1n: 6 b\u01B0\u1EDBc (Hi\u1EC7n tr\u01B0\u1EDDng \u2192 CQCA \u2192 B\u1EA3o hi\u1EC3m \u2192 X\u01B0\u1EDFng SC \u2192 TT \u2192 \u0110\xF3ng)",
+        "\uD83D\uDD27 K\u1EF9 thu\u1EADt — L\u1ED7i xe: 5 b\u01B0\u1EDBc (Ph\xE1t sinh \u2192 V\xE0o x\u01B0\u1EDFng \u2192 \u0110ang s\u1EEDa \u2192 Xu\u1EA5t x\u01B0\u1EDFng \u2192 \u0110\xF3ng)",
+        "\uD83D\uDCAC Kh\xE1ch h\xE0ng — Ph\u1EA3n h\u1ED3i: 4 b\u01B0\u1EDBc (Ti\u1EBFp nh\u1EADn \u2192 X\xE1c minh \u2192 X\u1EED l\xFD \u2192 \u0110\xF3ng)",
+        "\uD83D\uDEAA Ngh\u1EC9 vi\u1EC7c — 5 b\u01B0\u1EDBc (Th\xF4ng b\xE1o \u2192 Thu h\u1ED3i xe \u2192 Thanh l\xFD \u2192 Ho\xE0n c\u1ECDc \u2192 \u0110\xF3ng)",
+        "\uD83C\uDF19 Xu\u1ED1ng ca — 2 b\u01B0\u1EDBc (Ghi nh\u1EADn \u2192 \u0110\xF3ng)",
+        "\uD83D\uDD28 Xe v\xE0o x\u01B0\u1EDFng — 4 b\u01B0\u1EDBc (V\xE0o x\u01B0\u1EDFng \u2192 \u0110ang SC \u2192 Xu\u1EA5t x\u01B0\u1EDFng \u2192 V\u1EADn doanh)"
+      ]},
+      {icon:"\u2795",title:"T\u1EA1o s\u1EF1 v\u1EE5 m\u1EDBi (GSVH)",color:C.accent,items:[
+        "B\u1EA5m n\xFAt '+ T\u1EA1o' g\xF3c tr\xEAn ph\u1EA3i",
+        "Ch\u1ECDn lo\u1EA1i s\u1EF1 v\u1EE5 \u2192 \u0110i\u1EC1n bi\u1EC3n s\u1ED1 (t\u1EF1 g\u1EE3i \xFD xe t\u1EEB database)",
+        "Bi\u1EC3n s\u1ED1 t\u1EF1 \u0111i\u1EC1n: T\u1ED5, T\xEAn TX, Th\xF4ng tin BH",
+        "VCTN c\xF3 3 tab: \u2460 S\u1EF1 v\u1EE5 \u2461 X\u1EED l\xFD (BH + X\u01B0\u1EDFng) \u2462 T\xE0i ch\xEDnh",
+        "B\u1EA5m L\u01B0u \u2192 T\u1EF1 \u0111\u1ED3ng b\u1ED9 Firebase"
+      ]},
+      {icon:"\u27A1\uFE0F",title:"C\u1EADp nh\u1EADt ti\u1EBFn \u0111\u1ED9",color:"#FFCA00",items:[
+        "B\u1EA5m v\xE0o th\u1EBB s\u1EF1 v\u1EE5 \u2192 Xem chi ti\u1EBFt",
+        "B\u1EA5m v\xE0o c\xE1c n\xFAt s\u1ED1 tr\xEAn thanh b\u01B0\u1EDBc \u2192 Chuy\u1EC3n b\u01B0\u1EDBc",
+        "B\u1EA5m \u270F\uFE0F \u0111\u1EC3 s\u1EEDa th\xF4ng tin chi ti\u1EBFt",
+        "Nh\u1EADp ghi ch\xFA + '+ Ghi' \u2192 L\u01B0u nh\u1EADt k\xFD"
+      ]},
+      {icon:"\u26A0\uFE0F",title:"Panel c\u1EA3nh b\xE1o (trang T\u1ED5ng quan)",color:C.red,items:[
+        "\uD83D\uDD34 N\u1EB6M L\xC2U: S\u1EF1 v\u1EE5 ch\u01B0a x\u1EED l\xFD qu\xE1 7 ng\xE0y — c\u1EA7n \u01B0u ti\xEAn x\u1EED l\xFD ngay",
+        "\uD83D\uDD28 XE T\u1EA0I X\u01AF\u1EDENG: Theo d\xF5i xe XeVctn \u2014 b\u1EA5m \u0111\u1EC3 xem ti\u1EBFn \u0111\u1ED9",
+        "\u2705 \u0110\xDANG TI\u1EECN \u0110\u1ED8: Ho\xE0n th\xE0nh \u22645 ng\xE0y trong 2 tu\u1EA7n g\u1EA7n nh\u1EA5t"
+      ]},
+      {icon:"\uD83D\uDCF1",title:"Form t\xE0i x\u1EBF t\u1EF1 b\xE1o",color:C.sub,items:[
+        "TX truy c\u1EADp: doixeocp07.cloud/tx-form.html",
+        "6 lo\u1EA1i b\xE1o: VCTN \xB7 K\u1EF9 thu\u1EADt \xB7 Kh\xE1ch h\xE0ng \xB7 Ngh\u1EC9 \xB7 Xu\u1ED1ng ca \xB7 Xe v\xE0o x\u01B0\u1EDFng",
+        "Ph\u1EA7n li\xEAn h\u1EC7 GSVH: B\u1EA5m t\xEAn \u2192 G\u1ECDi tr\u1EF1c ti\u1EBFp",
+        "T\u1EF1 hi\u1EC7n t\u1EA1i ho\xE1 ng\xE0y gi\u1EDD khi m\u1EDF form"
+      ]},
+      {icon:"\uD83D\uDCBE",title:"D\u1EEF li\u1EC7u & Sao l\u01B0u",color:"#a78bfa",items:[
+        "Firebase t\u1EF1 \u0111\u1ED3ng b\u1ED9 — kh\xF4ng c\u1EA7n nh\u1EA5n l\u01B0u th\u1EE7 c\xF4ng",
+        "Local storage: d\u1EF1 ph\xF2ng khi m\u1EA5t internet",
+        "Tab B\xE1o c\xE1o: Xu\u1EA5t t\xF3m t\u1EAFt th\xE1ng qua Zalo/Copy",
+        "D\u1EEF li\u1EC7u xe: /vehicles (bi\u1EC3n s\u1ED1, BH, t\xE0i x\u1EBF)"
+      ]}
+    ].map(function(sec){return /*#__PURE__*/React.createElement("div",{key:sec.title,style:{background:C.card,borderRadius:12,padding:"12px 14px",marginBottom:10,border:"1px solid "+sec.color+"33"}},
+      /*#__PURE__*/React.createElement("div",{style:{fontSize:12,fontWeight:800,color:sec.color,marginBottom:8,display:"flex",alignItems:"center",gap:6}},
+        /*#__PURE__*/React.createElement("span",{style:{fontSize:16}},sec.icon),sec.title
+      ),
+      sec.items.map(function(item,idx){return /*#__PURE__*/React.createElement("div",{key:idx,style:{fontSize:12,color:C.text,padding:"4px 0",borderBottom:"1px solid "+C.border,lineHeight:1.5,display:"flex",gap:6}},
+        /*#__PURE__*/React.createElement("span",{style:{color:sec.color,flexShrink:0}},"·"),item
+      );})
+    );})
+  ))));
+}
+
+
+// ── AUTOCOMPLETE BIỂN SỐ – VEHICLE LOOKUP ────────────────────────────────────
+const FB_VEH_URL = "https://suco-07-default-rtdb.asia-southeast1.firebasedatabase.app/vehicles";
+let _vehCache = null;
+
+async function vehFetch() {
+  if (_vehCache) return _vehCache;
+  try {
+    const r = await fetch(FB_VEH_URL + '.json');
+    _vehCache = await r.json() || {};
+  } catch { _vehCache = {}; }
+  return _vehCache;
+}
+
+function vehNorm(s) { return (s||'').replace(/[.\-\s]/g,'').toUpperCase(); }
+
+window.vehSearch = async function(val, onSelect) {
+  if (!val || val.length < 3) return [];
+  const db = await vehFetch();
+  const q = vehNorm(val);
+  return Object.values(db).filter(v => vehNorm(v.bienSo||'').includes(q)).slice(0,6);
+};
+
+window.vehFillForm = function(v, setF) {
+  if (!v || !setF) return;
+  const toMap = {
+    'Tổ 01':'OCP.DOIXE07.01','Tổ 02':'OCP.DOIXE07.02',
+    'Tổ 03':'OCP.DOIXE07.03','Tổ 04':'OCP.DOIXE07.04','Tổ 05':'OCP.DOIXE07.05'
+  };
+  const loaiMap = {
+    'MINIOGREEN':'VF5','LIMOGREEN':'VF8','VFE34':'VFE34',
+    'VF5':'VF5','HERIOGREEN':'VF5','MINIOGREENPLUS':'VF5'
+  };
+  setF(prev => ({
+    ...prev,
+    bienSo:   v.bienSo  || prev.bienSo,
+    loaiXe:   loaiMap[v.loaiXe] || v.loaiXe || prev.loaiXe,
+    soKhung:  v.soKhung || prev.soKhung,
+    to:       toMap[v.to] || prev.to,
+    taiXe:    v.tenTX   || prev.taiXe,
+    // BH tự điền
+    bhDV:         v.bhDV         || prev.bhDV,
+    phamViBH:     v.phamViBH     || prev.phamViBH,
+    ngayKyBHVC:   v.ngayKyBHVC   || prev.ngayKyBHVC,
+    ngayHetBHVC:  v.ngayHetHanBHVC  || prev.ngayHetBHVC,
+    ngayKyBHTNDS: v.ngayKyBHTNDS || prev.ngayKyBHTNDS,
+    ngayHetBHTNDS:v.ngayHetHanBHTNDS|| prev.ngayHetBHTNDS,
+    hanDangKiem:  v.hanDangKiem  || '',
+    hanPhuHieu:   v.hanPhuHieu   || '',
+    trangThaiXe:  v.trangThaiXe  || '',
+  }));
+};
+
+// Hook React custom: dùng trong FormGSVH
+window.useVehAutocomplete = function(bienSo, setF) {
+  const [suggestions, setSuggestions] = React.useState([]);
+  const [show, setShow] = React.useState(false);
+  const timer = React.useRef(null);
+
+  React.useEffect(() => {
+    clearTimeout(timer.current);
+    if (!bienSo || bienSo.length < 3) { setSuggestions([]); setShow(false); return; }
+    timer.current = setTimeout(async () => {
+      const res = await window.vehSearch(bienSo);
+      setSuggestions(res);
+      setShow(res.length > 0);
+    }, 300);
+    return () => clearTimeout(timer.current);
+  }, [bienSo]);
+
+  const select = (v) => { window.vehFillForm(v, setF); setShow(false); setSuggestions([]); };
+  const hide   = ()  => setTimeout(() => setShow(false), 200);
+  return { suggestions, show, select, hide };
+};
+
+
+// ── VEHICLE AUTOCOMPLETE (Global JS, không dụng vào React) ──────────────────
+(function() {
+  const FB_VEH = "https://suco-07-default-rtdb.asia-southeast1.firebasedatabase.app/vehicles";
+  let _cache = null, _timer = null, _activeInput = null;
+
+  // CSS cho dropdown
+  const style = document.createElement('style');
+  style.textContent = `
+    #_veh_dd {
+      position:fixed; z-index:9999; background:#fff;
+      border:2px solid #2DCCD3; border-radius:12px;
+      box-shadow:0 6px 24px rgba(45,204,211,.25);
+      max-height:260px; overflow-y:auto; min-width:280px;
+      font-family:Nunito,sans-serif;
+    }
+    #_veh_dd .vdd-item {
+      padding:10px 14px; cursor:pointer;
+      border-bottom:1px solid #D5F5F6;
+      transition:background .1s;
+    }
+    #_veh_dd .vdd-item:hover { background:#D5F5F6; }
+    #_veh_dd .vdd-item:last-child { border-bottom:none; }
+    #_veh_dd .vdd-bs { font-size:14px; font-weight:800; color:#0B3335; }
+    #_veh_dd .vdd-info { font-size:11px; color:#17666A; margin-top:2px; }
+    #_veh_dd .vdd-bh { font-size:10px; color:#FFCA00; }
+  `;
+  document.head.appendChild(style);
+
+  async function getVehicles() {
+    if (_cache) return _cache;
+    try {
+      const r = await fetch(FB_VEH + '.json');
+      _cache = await r.json() || {};
+    } catch(e) { _cache = {}; }
+    return _cache;
+  }
+
+  function norm(s) { return (s||'').replace(/[.\-\s]/g,'').toUpperCase(); }
+
+  function showDD(items, input) {
+    removeDD();
+    if (!items.length) return;
+    const dd = document.createElement('div');
+    dd.id = '_veh_dd';
+
+    const rect = input.getBoundingClientRect();
+    dd.style.cssText = `top:${rect.bottom+4}px;left:${rect.left}px;width:${Math.max(rect.width,280)}px`;
+
+    items.forEach(v => {
+      const item = document.createElement('div');
+      item.className = 'vdd-item';
+      const loaiMap = {MINIOGREEN:'VF5',LIMOGREEN:'VF8',VFE34:'VFE34',VF5:'VF5',HERIOGREEN:'VF5'};
+      const loai = loaiMap[v.loaiXe] || v.loaiXe || '';
+      item.innerHTML = `
+        <div class="vdd-bs">${v.bienSo}</div>
+        <div class="vdd-info">${loai} · ${v.to}${v.tenTX?' · '+v.tenTX:''}</div>
+        ${v.bhDV?`<div class="vdd-bh">BH: ${v.bhDV} · HH BHVC: ${v.ngayHetHanBHVC||'—'}</div>`:''}
+      `;
+      item.addEventListener('mousedown', e => {
+        e.preventDefault();
+        fillVehicle(v, input);
+        removeDD();
+      });
+      dd.appendChild(item);
+    });
+    document.body.appendChild(dd);
+  }
+
+  function removeDD() {
+    document.getElementById('_veh_dd')?.remove();
+  }
+
+  const toFull = {
+    'Tổ 01':'OCP.DOIXE07.01','Tổ 02':'OCP.DOIXE07.02','Tổ 03':'OCP.DOIXE07.03',
+    'Tổ 04':'OCP.DOIXE07.04','Tổ 05':'OCP.DOIXE07.05'
+  };
+
+  function fillVehicle(v, bsInput) {
+    // Điền biển số - trigger React qua nativeInputValueSetter
+    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    const triggerChange = el => {
+      nativeSetter.call(el, el.dataset.fill || '');
+      el.dispatchEvent(new Event('input', {bubbles:true}));
+      el.dispatchEvent(new Event('change', {bubbles:true}));
+      setTimeout(() => el.dispatchEvent(new Event('blur', {bubbles:true})), 50);
+    };
+
+    // Tìm các fields trong form đang mở
+    const form = document.querySelector('[style*="position:fixed"][style*="z-index:100"]') || document.body;
+    const allInputs = form.querySelectorAll('input, select, textarea');
+
+    const fill = (placeholder, value) => {
+      allInputs.forEach(el => {
+        const label = el.closest('div')?.previousElementSibling?.textContent?.toUpperCase() || '';
+        const ph = (el.placeholder||'').toUpperCase();
+        if (!value) return;
+        // Match theo placeholder hoặc label
+        if (placeholder === 'BIENSO' && (ph.includes('51F') || ph.includes('BIỂN'))) {
+          el.dataset.fill = value; triggerChange(el);
+        }
+        if (placeholder === 'SOKHUNG' && (ph.includes('KHUNG') || label.includes('KHUNG'))) {
+          el.dataset.fill = value; triggerChange(el);
+        }
+        if (placeholder === 'TAIXE' && (ph.includes('NGUYỄN') || label.includes('TÀI XẾ'))) {
+          el.dataset.fill = value; triggerChange(el);
+        }
+      });
+      // Fill select Tổ
+      allInputs.forEach(el => {
+        if (el.tagName === 'SELECT' && el.innerHTML.includes('OCP.DOIXE07')) {
+          const fullTo = toFull[v.to] || v.to;
+          if (fullTo) {
+            el.dataset.fill = fullTo;
+            nativeSetter.call(el, fullTo);
+            el.dispatchEvent(new Event('change', {bubbles:true}));
+          }
+        }
+      });
+    };
+
+    fill('BIENSO', v.bienSo);
+    fill('SOKHUNG', v.soKhung);
+    fill('TAIXE', v.tenTX);
+
+    // Lưu BH info để form tự điền khi cần
+    window._lastVehicle = v;
+    bsInput.dataset.fill = v.bienSo;
+    bsInput.dispatchEvent(new Event('blur', {bubbles:true}));
+  }
+
+  // Lắng nghe tất cả input events - tìm ô biển số
+  document.addEventListener('input', async e => {
+    const el = e.target;
+    if (el.tagName !== 'INPUT') return;
+    const ph = (el.placeholder||'').toUpperCase();
+    const val = el.value || '';
+    // Chỉ trigger khi đang gõ vào ô có placeholder liên quan đến biển số
+    if (!ph.includes('51F') && !ph.includes('BIỂN') && !ph.includes('29E') && !ph.includes('29K')) {
+      // Thử detect theo context: input nằm gần label "Biển số"
+      const label = el.closest('div')?.previousElementSibling?.textContent || '';
+      if (!label.toUpperCase().includes('BIỂN')) return;
+    }
+
+    _activeInput = el;
+    clearTimeout(_timer);
+    removeDD();
+    if (val.length < 3) return;
+
+    _timer = setTimeout(async () => {
+      const db = await getVehicles();
+      const q = norm(val);
+      const matches = Object.values(db)
+        .filter(v => norm(v.bienSo||'').includes(q))
+        .slice(0, 6);
+      showDD(matches, el);
+    }, 300);
+  }, true);
+
+  document.addEventListener('blur', () => {
+    setTimeout(removeDD, 200);
+  }, true);
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') removeDD();
+  });
+
+})();
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+
+
+</script>
+</body>
+</html>
