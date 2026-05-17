@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Báo sự vụ – doixeocp07.cloud</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;background:#F0FEFF;font-family:'Nunito',sans-serif;color:#0B3335;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:#ABEBED;border-radius:4px}
+.wrap{max-width:540px;margin:0 auto;padding:0 0 48px}
+.header{background:linear-gradient(160deg,#0B3335 0%,#17666A 60%,#2DCCD3 100%);padding:24px 20px 20px;text-align:center;position:relative;overflow:hidden;}
+.header::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;border-radius:50%;background:rgba(255,202,0,0.15);}
+.header::after{content:'';position:absolute;bottom:-30px;left:-30px;width:120px;height:120px;border-radius:50%;background:rgba(205,234,128,0.12);}
+.header .logo{font-size:40px;margin-bottom:6px;position:relative;z-index:1}
+.header h1{font-size:20px;font-weight:900;color:#FFFFFF;letter-spacing:-.3px;position:relative;z-index:1}
+.header p{font-size:11px;color:#ABEBED;margin-top:3px;font-weight:600;position:relative;z-index:1}
+
+/* CONTACTS */
+.contacts-card{background:linear-gradient(135deg,#071E20 0%,#0B3335 100%);border-bottom:2px solid #2DCCD3;}
+.contacts-toggle{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.contacts-toggle-left{display:flex;align-items:center;gap:8px}
+.contacts-toggle-left .clabel{font-size:12px;font-weight:800;color:#ABEBED;letter-spacing:.5px}
+.ctag{background:rgba(45,204,211,.2);border:1px solid #2DCCD3;color:#2DCCD3;font-size:9px;font-weight:900;padding:2px 7px;border-radius:20px;letter-spacing:.5px}
+.contacts-arrow{font-size:10px;color:#57D6DC;transition:transform .25s;display:inline-block}
+.contacts-arrow.open{transform:rotate(180deg)}
+.contacts-list{display:none;padding:0 12px 12px;}
+.contacts-list.open{display:block}
+.contacts-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.contact-item{background:rgba(255,255,255,.06);border:1px solid rgba(45,204,211,.2);border-radius:10px;padding:8px 10px;display:flex;align-items:center;gap:8px;text-decoration:none;-webkit-tap-highlight-color:transparent;transition:background .15s;}
+.contact-item:active{background:rgba(45,204,211,.15)}
+.contact-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#2DCCD3,#17666A);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#fff;flex-shrink:0;border:1.5px solid rgba(45,204,211,.4);}
+.contact-info{min-width:0}
+.contact-name{font-size:12px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.contact-role{font-size:9px;color:#57D6DC;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.contact-phone{font-size:10px;color:#FFCA00;font-weight:700;margin-top:2px}
+.contact-item.dt{border-color:rgba(255,202,0,.35)}
+.contact-item.dt .contact-avatar{background:linear-gradient(135deg,#FFCA00,#BF9800);color:#0B3335}
+
+.body-wrap{padding:16px 16px 0}
+.loai-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.loai-btn{background:#fff;border:2px solid #D5F5F6;border-radius:16px;padding:14px 10px 11px;text-align:center;cursor:pointer;transition:all 0.2s cubic-bezier(.34,1.56,.64,1);-webkit-tap-highlight-color:transparent;box-shadow:0 2px 8px rgba(11,51,53,.06);}
+.loai-btn:active{transform:scale(.97)}
+.loai-btn.active{border-color:var(--c);background:linear-gradient(135deg,#fff 0%,rgba(45,204,211,.06) 100%);box-shadow:0 4px 16px rgba(45,204,211,.2);transform:translateY(-1px);}
+.loai-btn .icon{font-size:26px;margin-bottom:6px;display:block}
+.loai-btn .name{font-size:11px;font-weight:800;color:#17666A;line-height:1.3}
+.loai-btn.active .name{color:var(--c)}
+
+.section{background:#fff;border:none;border-radius:16px;padding:18px;margin-bottom:12px;display:none;box-shadow:0 2px 12px rgba(11,51,53,.07);border-left:4px solid #2DCCD3;}
+.section.show{display:block}
+.section.s-vctn{border-left-color:#2DCCD3}
+.section.s-common{border-left-color:#FFCA00}
+.section.s-xuong{border-left-color:#FF8C42}
+.section-title{font-size:10px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:6px;}
+
+/* Status badge */
+.status-badge{display:inline-flex;align-items:center;gap:6px;background:#FFF3EB;border:1.5px solid #FF8C42;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;color:#C45A00;margin-bottom:10px;width:100%;}
+.status-badge .arrow{color:#FF8C42;font-size:14px;margin:0 4px;}
+.input-note{font-size:10px;color:#57D6DC;font-weight:600;margin-top:2px;padding-left:2px;margin-bottom:10px;}
+
+.field{margin-bottom:12px}
+.field label{display:block;font-size:9px;color:#17666A;text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px;font-weight:800;}
+.field input,.field select,.field textarea{width:100%;background:#F7FDFE;border:1.5px solid #ABEBED;border-radius:12px;color:#0B3335;padding:11px 14px;font-size:14px;outline:none;font-family:'Nunito',sans-serif;font-weight:600;-webkit-appearance:none;transition:all .2s;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:#2DCCD3;background:#fff;box-shadow:0 0 0 3px rgba(45,204,211,.15);}
+.field textarea{resize:none;line-height:1.6}
+.field .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+.chk-wrap{display:flex;align-items:center;gap:12px;padding:12px 14px;background:#F7FDFE;border:1.5px solid #ABEBED;border-radius:12px;cursor:pointer;margin-bottom:10px;-webkit-tap-highlight-color:transparent;transition:all .15s;}
+.chk-wrap:active{background:#D5F5F6}
+.chk-wrap input{width:18px;height:18px;accent-color:#2DCCD3;flex-shrink:0}
+.chk-wrap span{font-size:13px;color:#0B3335;font-weight:600;line-height:1.4}
+.chk-wrap.chk-orange{border-color:#FFD9B8;background:#FFF8F3;}
+.chk-wrap.chk-orange input{accent-color:#FF8C42;}
+.chk-wrap.chk-orange:active{background:#FFE8D0}
+
+.gps-row{display:flex;gap:8px}
+.gps-row input{flex:1}
+.gps-btn{background:#2DCCD3;color:#fff;border:none;border-radius:12px;padding:0 16px;font-size:12px;cursor:pointer;white-space:nowrap;font-family:'Nunito',sans-serif;flex-shrink:0;font-weight:800;transition:all .2s;box-shadow:0 3px 10px rgba(45,204,211,.3);}
+.gps-btn:disabled{background:#ABEBED;box-shadow:none;cursor:not-allowed}
+.gps-btn:active{transform:scale(.97)}
+
+.submit-btn{width:100%;padding:16px;border:none;border-radius:16px;font-size:16px;font-weight:900;cursor:pointer;font-family:'Nunito',sans-serif;transition:all .2s;margin-top:6px;letter-spacing:.3px;}
+.submit-btn:disabled{opacity:.5;cursor:not-allowed}
+.submit-btn:active{transform:scale(.98)}
+.submit-btn.vctn{background:linear-gradient(135deg,#2DCCD3,#17666A);color:#fff;box-shadow:0 6px 20px rgba(45,204,211,.35);}
+.submit-btn.ky_thuat{background:linear-gradient(135deg,#FFCA00,#BF9800);color:#0B3335;box-shadow:0 6px 20px rgba(255,202,0,.35);}
+.submit-btn.khach_hang{background:linear-gradient(135deg,#CDEA80,#9AB060);color:#0B3335;box-shadow:0 6px 20px rgba(205,234,128,.35);}
+.submit-btn.nghi_viec{background:linear-gradient(135deg,#0B3335,#17666A);color:#ABEBED;box-shadow:0 6px 20px rgba(11,51,53,.35);}
+.submit-btn.xuong_ca{background:linear-gradient(135deg,#17666A,#2DCCD3);color:#fff;box-shadow:0 6px 20px rgba(23,102,106,.35);}
+.submit-btn.xe_xuong{background:linear-gradient(135deg,#FF8C42,#C45A00);color:#fff;box-shadow:0 6px 20px rgba(255,140,66,.35);}
+
+#success{display:none;text-align:center;padding:60px 24px;min-height:100vh;background:linear-gradient(160deg,#071E20,#0B3335,#17666A);align-items:center;justify-content:center;flex-direction:column;}
+#success.visible{display:flex}
+#success .icon{font-size:72px;margin-bottom:16px}
+#success h2{font-size:24px;font-weight:900;color:#2DCCD3;margin-bottom:10px}
+#success p{font-size:14px;color:#ABEBED;line-height:1.8;margin-bottom:32px;font-weight:600}
+#success .sv-id{background:rgba(45,204,211,.15);border:1px solid #2DCCD3;border-radius:10px;padding:8px 16px;font-size:12px;color:#2DCCD3;font-weight:800;margin-bottom:24px;display:inline-block;letter-spacing:1px;}
+#success .back-btn{background:#2DCCD3;color:#fff;border:none;border-radius:14px;padding:14px 36px;font-size:15px;font-weight:900;cursor:pointer;font-family:'Nunito',sans-serif;box-shadow:0 6px 20px rgba(45,204,211,.4);letter-spacing:.3px;}
+.warning{background:#FFFBEB;border:2px solid #FFCA00;border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:#7a5800;display:none;font-weight:700;}
+.warning.show{display:block}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="main-form">
+
+    <!-- HEADER -->
+    <div class="header">
+      <div class="logo">🚖</div>
+      <h1>Báo sự vụ – OCP07</h1>
+      <p>doixeocp07.cloud · Depot Hà Nội 1</p>
+    </div>
+
+    <!-- LIÊN HỆ 6 QUẢN LÝ -->
+    <div class="contacts-card">
+      <div class="contacts-toggle" onclick="toggleContacts()">
+        <div class="contacts-toggle-left">
+          <span class="clabel">📞 Liên hệ GSVH</span>
+          <span class="ctag">6 người</span>
+        </div>
+        <span class="contacts-arrow" id="contacts-arrow">▼</span>
+      </div>
+      <div class="contacts-list" id="contacts-list">
+        <div class="contacts-grid">
+          <a class="contact-item dt" href="tel:0984958863">
+            <div class="contact-avatar">L</div>
+            <div class="contact-info">
+              <div class="contact-name">Lân</div>
+              <div class="contact-role">⭐ Đội Trưởng · Toàn bộ</div>
+              <div class="contact-phone">0984 958 863</div>
+            </div>
+          </a>
+          <a class="contact-item" href="tel:0919179377">
+            <div class="contact-avatar">T</div>
+            <div class="contact-info">
+              <div class="contact-name">Toản</div>
+              <div class="contact-role">Tổ 1 · BH · VCTN</div>
+              <div class="contact-phone">0919 179 377</div>
+            </div>
+          </a>
+          <a class="contact-item" href="tel:0988160280">
+            <div class="contact-avatar">T</div>
+            <div class="contact-info">
+              <div class="contact-name">Tú</div>
+              <div class="contact-role">Tổ 2 · Checklist</div>
+              <div class="contact-phone">0988 160 280</div>
+            </div>
+          </a>
+          <a class="contact-item" href="tel:0865679654">
+            <div class="contact-avatar">V</div>
+            <div class="contact-info">
+              <div class="contact-name">Việt Anh</div>
+              <div class="contact-role">Tổ 3 · Phạt nguội · ĐK</div>
+              <div class="contact-phone">0865 679 654</div>
+            </div>
+          </a>
+          <a class="contact-item" href="tel:0986368224">
+            <div class="contact-avatar">T</div>
+            <div class="contact-info">
+              <div class="contact-name">Thành</div>
+              <div class="contact-role">Tổ 4 · Vận hành</div>
+              <div class="contact-phone">0986 368 224</div>
+            </div>
+          </a>
+          <a class="contact-item" href="tel:0964495858">
+            <div class="contact-avatar">H</div>
+            <div class="contact-info">
+              <div class="contact-name">Huy</div>
+              <div class="contact-role">Tổ 5 · Công lương · KH</div>
+              <div class="contact-phone">0964 495 858</div>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="body-wrap">
+    <div style="margin:16px 0 4px;font-size:10px;font-weight:900;color:#17666A;letter-spacing:1px;text-transform:uppercase">📌 Loại sự vụ</div>
+    <div class="loai-grid">
+      <div class="loai-btn active" style="--c:#2DCCD3" data-loai="VCTN" onclick="chonLoai('VCTN')">
+        <span class="icon">💥</span><div class="name">Va chạm<br/>tai nạn</div>
+      </div>
+      <div class="loai-btn" style="--c:#FFCA00" data-loai="KY_THUAT" onclick="chonLoai('KY_THUAT')">
+        <span class="icon">🔧</span><div class="name">Lỗi<br/>kỹ thuật</div>
+      </div>
+      <div class="loai-btn" style="--c:#CDEA80" data-loai="KHACH_HANG" onclick="chonLoai('KHACH_HANG')">
+        <span class="icon">💬</span><div class="name">Phản hồi<br/>khách hàng</div>
+      </div>
+      <div class="loai-btn" style="--c:#57D6DC" data-loai="NGHI_VIEC" onclick="chonLoai('NGHI_VIEC')">
+        <span class="icon">🚪</span><div class="name">Nghỉ /<br/>Vắng mặt</div>
+      </div>
+      <div class="loai-btn" style="--c:#81E0E5" data-loai="XUONG_CA" onclick="chonLoai('XUONG_CA')">
+        <span class="icon">🌙</span><div class="name">Xuống ca<br/>Nghỉ ca</div>
+      </div>
+      <div class="loai-btn" style="--c:#FF8C42" data-loai="XE_XUONG" onclick="chonLoai('XE_XUONG')">
+        <span class="icon">🔨</span><div class="name">Xe vào<br/>xưởng</div>
+      </div>
+    </div>
+
+    <!-- SECTION CHUNG: XE & TÀI XẾ -->
+    <div class="section show s-common" id="sec-xe">
+      <div class="section-title" style="color:#FFCA00">🚖 Xe & Tài xế</div>
+      <div class="field">
+        <div class="row">
+          <div style="position:relative">
+            <label>Biển số xe *</label>
+            <input id="bienSo" type="text" placeholder="51F-123.45" autocomplete="off"/>
+            <div id="bhInfo" style="font-size:10px;color:#17666A;margin-top:3px;min-height:14px"></div>
+          </div>
+          <div><label>Mã NV (nếu có)</label><input id="maNV" type="text" placeholder="8000027831"/></div>
+        </div>
+        <div class="field"><label>Tên tài xế *</label><input id="taiXe" type="text" placeholder="Nguyễn Văn A"/></div>
+      </div>
+      <div class="field">
+        <label>Tổ</label>
+        <select id="to">
+          <option>OCP.DOIXE07.01</option>
+          <option>OCP.DOIXE07.02</option>
+          <option>OCP.DOIXE07.03</option>
+          <option>OCP.DOIXE07.04</option>
+          <option>OCP.DOIXE07.05</option>
+        </select>
+      </div>
+      <div class="field">
+        <div class="row">
+          <div><label>Ngày</label><input id="ngayTao" type="date"/></div>
+          <div><label>Giờ</label><input id="thoiGian" type="time"/></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VCTN -->
+    <div class="section s-vctn" id="sec-vctn">
+      <div class="section-title" style="color:#2DCCD3">📍 Hiện trường va chạm</div>
+      <div class="field">
+        <label>Địa điểm xảy ra</label>
+        <div class="gps-row">
+          <input id="diaDiem" type="text" placeholder="Địa chỉ / tên đường..."/>
+          <button class="gps-btn" onclick="layGPS('diaDiem')">📍 GPS</button>
+        </div>
+      </div>
+      <div class="field"><label>Nhóm lỗi</label>
+        <select id="nhomLoi"><option>Chủ quan</option><option>Khách quan</option><option>Hỗn hợp</option><option>Không xác định</option></select>
+      </div>
+      <div class="field"><label>Mô tả nguyên nhân</label><textarea id="moTa" rows="3" placeholder="Mô tả ngắn gọn tình huống..."></textarea></div>
+      <div class="field"><label>Hư hỏng xe Xanh SM</label><textarea id="huHong" rows="2" placeholder="Vỡ cản trước, móp sườn máy, bung vành trước..."></textarea></div>
+      <div class="field"><label>Thiệt hại xe / tài sản phía kia</label><textarea id="thietHaiXeKhac" rows="2" placeholder="Xước móp đầu xe, vỡ gương..."></textarea></div>
+      <div class="field"><label>Tình trạng khách trên xe</label>
+        <select id="khachTrenXe">
+          <option value="Không có khách hàng">Không có khách hàng</option>
+          <option value="Có khách — không bị thương">Có khách — không bị thương</option>
+          <option value="Có khách — bị thương nhẹ">Có khách — bị thương nhẹ</option>
+          <option value="Có khách — bị thương nặng">Có khách — bị thương nặng</option>
+        </select>
+      </div>
+      <label class="chk-wrap" onclick="toggleChk('nguoiBiThuong')"><input type="checkbox" id="nguoiBiThuong"/><span>⚠️ Có người bị thương / nạn nhân</span></label>
+      <label class="chk-wrap" onclick="toggleChk('cqcaGiu')"><input type="checkbox" id="cqcaGiu"/><span>🚔 Xe bị công an tạm giữ</span></label>
+      <div class="field" id="tenCQCA-wrap" style="display:none"><label>Cơ quan CA giữ xe</label><input id="tenCQCA" type="text" placeholder="Tên cơ quan..."/></div>
+      <label class="chk-wrap chk-orange" onclick="toggleChk('vanDoanhTamThoi')"><input type="checkbox" id="vanDoanhTamThoi"/><span>🟢 Xe vẫn vận doanh tạm thời (chưa vào xưởng)</span></label>
+      <label class="chk-wrap chk-orange" onclick="toggleChk('xeVaoXuongVCTN')"><input type="checkbox" id="xeVaoXuongVCTN"/><span>🔨 Xe cần đưa vào xưởng sau VCTN</span></label>
+      <div class="field" id="xuongVCTN-wrap" style="display:none">
+        <label>Tên xưởng dự kiến</label>
+        <select id="xuongVCTN">
+          <option value="">-- Chọn xưởng --</option>
+          <option>VinFast GMS Gia Lâm</option>
+          <option>VinFast CarOn Gia Lâm</option>
+          <option>VinFast Con Đường Mới Hoài Đức</option>
+          <option>VinFast Thịnh Cường Đài Tư Long Biên</option>
+          <option>Xưởng Depot Hà Nội 1</option>
+          <option>Chưa xác định</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- KỸ THUẬT -->
+    <div class="section" id="sec-ky_thuat" style="border-left-color:#FFCA00">
+      <div class="section-title" style="color:#FFCA00">🔧 Lỗi kỹ thuật</div>
+      <div class="field"><label>Địa điểm phát sinh</label>
+        <div class="gps-row"><input id="diaDiemKT" type="text" placeholder="Địa điểm xe gặp sự cố"/><button class="gps-btn" onclick="layGPS('diaDiemKT')">📍 GPS</button></div>
+      </div>
+      <div class="field"><label>Mô tả lỗi</label><textarea id="moTaKT" rows="3" placeholder="Xe bị gì? Đèn báo gì? Triệu chứng..."></textarea></div>
+    </div>
+
+    <!-- KHÁCH HÀNG -->
+    <div class="section" id="sec-khach_hang" style="border-left-color:#CDEA80">
+      <div class="section-title" style="color:#9AB060">💬 Phản hồi khách hàng</div>
+      <div class="field"><label>Tên khách hàng (nếu có)</label><input id="tenKhach" type="text" placeholder="Tên hoặc mã chuyến đi"/></div>
+      <div class="field"><label>Nội dung phản hồi</label><textarea id="moTaKH" rows="3" placeholder="Khách phản hồi về vấn đề gì..."></textarea></div>
+    </div>
+
+    <!-- NGHỈ VIỆC -->
+    <div class="section" id="sec-nghi_viec" style="border-left-color:#57D6DC">
+      <div class="section-title" style="color:#17666A">🚪 Thông báo nghỉ</div>
+      <div class="field"><label>Lý do nghỉ</label>
+        <select id="lyDoNghi"><option>Nghỉ phép</option><option>Ốm / bệnh</option><option>Việc gia đình</option><option>Nghỉ việc hẳn</option><option>Lý do khác</option></select>
+      </div>
+      <div class="field">
+        <div class="row">
+          <div><label>Ngày bắt đầu nghỉ *</label><input id="ngayBatDau" type="date"/></div>
+          <div><label>Ngày quay lại làm *</label><input id="ngayNghi" type="date"/></div>
+        </div>
+        <div id="soNgayNghi" style="font-size:11px;color:#2DCCD3;font-weight:700;margin-top:5px;text-align:center;min-height:16px"></div>
+      </div>
+      <div class="field"><label>Ghi chú thêm</label><textarea id="moTaNV" rows="2" placeholder="Người trực thay, thông tin liên hệ..."></textarea></div>
+    </div>
+
+    <!-- XUỐNG CA -->
+    <div class="section" id="sec-xuong_ca" style="border-left-color:#81E0E5">
+      <div class="section-title" style="color:#2DCCD3">🌙 Xuống ca / Nghỉ ca</div>
+      <div class="field"><label>Lý do xuống ca sớm</label><textarea id="moTaXC" rows="3" placeholder="Lý do cần xuống ca..."></textarea></div>
+      <div class="field"><label>Vị trí hiện tại</label>
+        <div class="gps-row"><input id="viTriXC" type="text" placeholder="Đang ở đâu?"/><button class="gps-btn" onclick="layGPS('viTriXC')">📍 GPS</button></div>
+      </div>
+    </div>
+
+    <!-- XE VÀO XƯỞNG -->
+    <div class="section s-xuong" id="sec-xe_xuong">
+      <div class="section-title" style="color:#FF8C42">🔨 Xe vào xưởng sửa chữa</div>
+      <div class="status-badge">
+        <span>🟢 Vận doanh</span><span class="arrow">→</span><span>🟠 XeVctn (tạm thời)</span>
+      </div>
+      <p class="input-note">⚡ Lưu vết tạm thời — xe tự động về vận doanh khi xuất xưởng</p>
+      <div class="field"><label>Tên xưởng *</label>
+        <select id="tenXuong">
+          <option value="">-- Chọn xưởng --</option>
+          <option>VinFast GMS Gia Lâm</option>
+          <option>VinFast CarOn Gia Lâm</option>
+          <option>VinFast Con Đường Mới Hoài Đức</option>
+          <option>VinFast Thịnh Cường Đài Tư Long Biên</option>
+          <option>VinFast Thịnh Cường Ocean Park</option>
+          <option>VinFast Thăng Long Trịnh Văn Bô</option>
+          <option>VinFast Phan Trọng Tuệ Thanh Trì</option>
+          <option>VinFast Pika Vượng An Khánh</option>
+          <option>VinFast Sông Công</option>
+          <option>Xưởng Depot Hà Nội 1</option>
+          <option>Xưởng khác</option>
+        </select>
+      </div>
+      <div class="field" id="tenXuongKhac-wrap" style="display:none">
+        <label>Tên xưởng (nhập tay)</label><input id="tenXuongKhac" type="text" placeholder="Tên xưởng cụ thể..."/>
+      </div>
+      <div class="field"><label>Nhóm lỗi / Lý do vào xưởng *</label>
+        <select id="nhomLoiXuong">
+          <option value="">-- Chọn loại --</option>
+          <option value="VCTN_PIN">VCTN_PIN — Lỗi pin / sạc</option>
+          <option value="VCTN_TV">VCTN_TV — Tai nạn thân vỏ</option>
+          <option value="VCTN_HH">VCTN_HH — Hư hỏng nặng</option>
+          <option value="CSC_TV">CSC_TV — Xước / tân trang</option>
+          <option value="BAO_DUONG">Bảo dưỡng định kỳ</option>
+          <option value="LOI_KT">Lỗi kỹ thuật khác</option>
+        </select>
+      </div>
+      <div class="field"><label>Chi tiết hư hỏng / công việc</label><textarea id="chiTietHuHong" rows="3" placeholder="Mô tả cụ thể tình trạng xe, hạng mục cần sửa..."></textarea></div>
+      <div class="field">
+        <div class="row">
+          <div><label>ODO vào xưởng (km)</label><input id="odoVaoXuong" type="number" placeholder="VD: 85000"/></div>
+          <div><label>Ngày dự kiến lấy xe</label><input id="ngayLayXe" type="date"/></div>
+        </div>
+      </div>
+      <div class="field"><label>Ghi chú thêm</label><textarea id="ghiChuXuong" rows="2" placeholder="Thông tin bổ sung cho GSVH..."></textarea></div>
+    </div>
+
+    <!-- Warning -->
+    <div class="warning" id="warn-thuong">🚑 Có người bị thương — Gọi cấp cứu <strong>115</strong> ngay và báo GSVH!</div>
+
+    <!-- Submit -->
+    <button class="submit-btn vctn" id="submitBtn" onclick="submitForm()">🚨 Gửi báo cáo cho GSVH</button>
+    </div>
+  </div>
+
+  <!-- Success -->
+  <div id="success">
+    <div>
+      <div class="icon">✅</div>
+      <h2>Đã gửi thành công!</h2>
+      <p id="success-msg">GSVH đã nhận được báo cáo.<br/>Vui lòng chờ hướng dẫn xử lý.</p>
+      <div class="sv-id" id="success-id"></div><br/>
+      <button class="back-btn" onclick="resetForm()">Báo thêm sự vụ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const FB_URL="https://suco-07-default-rtdb.asia-southeast1.firebasedatabase.app";
+const LOAI_MAP={
+  VCTN:{label:"Va chạm tai nạn",buoc:"hien_truong",btn:"vctn",emoji:"💥"},
+  KY_THUAT:{label:"Lỗi kỹ thuật",buoc:"phat_sinh",btn:"ky_thuat",emoji:"🔧"},
+  KHACH_HANG:{label:"Phản hồi KH",buoc:"tiep_nhan",btn:"khach_hang",emoji:"💬"},
+  NGHI_VIEC:{label:"Nghỉ việc",buoc:"thong_bao",btn:"nghi_viec",emoji:"🚪"},
+  XUONG_CA:{label:"Xuống ca",buoc:"ghi_nhan",btn:"xuong_ca",emoji:"🌙"},
+  XE_XUONG:{label:"Xe vào xưởng",buoc:"vao_xuong",btn:"xe_xuong",emoji:"🔨"}
+};
+var loaiHienTai="VCTN";
+
+function toggleContacts(){
+  var list=document.getElementById("contacts-list");
+  var arrow=document.getElementById("contacts-arrow");
+  list.classList.toggle("open");
+  arrow.classList.toggle("open");
+}
+
+window.onload=function(){
+  var d=new Date();
+  document.getElementById("ngayTao").value=d.toISOString().slice(0,10);
+  document.getElementById("thoiGian").value=d.toTimeString().slice(0,5);
+  var tmr=new Date(d); tmr.setDate(d.getDate()+1);
+  document.getElementById("ngayNghi").value=tmr.toISOString().slice(0,10);
+  document.getElementById("ngayLayXe").value=tmr.toISOString().slice(0,10);
+  // Ngày bắt đầu nghỉ mặc định là ngày mai
+  document.getElementById("ngayBatDau").value=tmr.toISOString().slice(0,10);
+  // Tự tính số ngày nghỉ
+  function calcSoNgay(){
+    var bd=document.getElementById("ngayBatDau").value;
+    var ql=document.getElementById("ngayNghi").value;
+    var el=document.getElementById("soNgayNghi");
+    if(bd&&ql){
+      var n=Math.ceil((new Date(ql)-new Date(bd))/86400000);
+      el.textContent=n>0?"⏱ "+n+" ngày nghỉ":n===0?"⚠️ Cùng ngày":("⚠️ Ngày quay lại phải sau ngày bắt đầu");
+    }else{el.textContent="";}
+  }
+  document.getElementById("ngayBatDau").addEventListener("change",calcSoNgay);
+  document.getElementById("ngayNghi").addEventListener("change",calcSoNgay);
+  calcSoNgay();
+  document.getElementById("cqcaGiu").onchange=function(){
+    document.getElementById("tenCQCA-wrap").style.display=this.checked?"block":"none";
+  };
+  document.getElementById("nguoiBiThuong").onchange=function(){
+    document.getElementById("warn-thuong").classList.toggle("show",this.checked);
+  };
+  document.getElementById("tenXuong").onchange=function(){
+    document.getElementById("tenXuongKhac-wrap").style.display=this.value==="Xưởng khác"?"block":"none";
+  };
+  document.getElementById("xeVaoXuongVCTN").onchange=function(){
+    document.getElementById("xuongVCTN-wrap").style.display=this.checked?"block":"none";
+    // Bỏ tick vận doanh tạm thời nếu tick xe vào xưởng
+    if(this.checked) document.getElementById("vanDoanhTamThoi").checked=false;
+  };
+  document.getElementById("vanDoanhTamThoi").onchange=function(){
+    // Bỏ tick xe vào xưởng nếu tick vận doanh tạm thời
+    if(this.checked){document.getElementById("xeVaoXuongVCTN").checked=false;document.getElementById("xuongVCTN-wrap").style.display="none";}
+  };
+};
+
+function chonLoai(loai){
+  loaiHienTai=loai;
+  document.querySelectorAll(".loai-btn").forEach(function(b){b.classList.remove("active");});
+  document.querySelector('[data-loai="'+loai+'"]').classList.add("active");
+  ["vctn","ky_thuat","khach_hang","nghi_viec","xuong_ca","xe_xuong"].forEach(function(s){
+    var el=document.getElementById("sec-"+s);
+    if(el) el.classList.remove("show");
+  });
+  var sec=document.getElementById("sec-"+loai.toLowerCase());
+  if(sec) sec.classList.add("show");
+  var btn=document.getElementById("submitBtn");
+  var info=LOAI_MAP[loai];
+  btn.className="submit-btn "+info.btn;
+  btn.textContent=info.emoji+" Gửi báo cáo "+info.label;
+}
+
+function layGPS(fieldId){
+  var btn=event.target; btn.textContent="⏳"; btn.disabled=true;
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      function(p){document.getElementById(fieldId).value=p.coords.latitude.toFixed(6)+", "+p.coords.longitude.toFixed(6);btn.textContent="✅";setTimeout(function(){btn.textContent="📍 GPS";btn.disabled=false;},1500);},
+      function(){btn.textContent="📍 GPS";btn.disabled=false;var ok=confirm("Không lấy được GPS.\nBấm OK mở Google Maps.");if(ok)window.open("https://maps.google.com?q=my+location","_blank");},
+      {timeout:8000,enableHighAccuracy:true}
+    );
+  } else {btn.textContent="📍 GPS";btn.disabled=false;window.open("https://maps.google.com","_blank");}
+}
+
+function toggleChk(id){var el=document.getElementById(id);el.checked=!el.checked;el.dispatchEvent(new Event("change"));}
+function genId(){return"SV-"+Date.now().toString().slice(-7);}
+function val(id){var el=document.getElementById(id);return el?(el.value||"").trim():"";}
+function chk(id){var el=document.getElementById(id);return el?el.checked||false:false;}
+
+function buildData(){
+  var base={
+    id:genId(),loai:loaiHienTai,buocHienTai:LOAI_MAP[loaiHienTai].buoc,
+    trangThai:"moi",nguoiTao:"TX_"+val("taiXe"),
+    bienSo:val("bienSo"),taiXe:val("taiXe"),maNV:val("maNV"),to:val("to"),
+    ngayTao:val("ngayTao"),thoiGian:val("thoiGian"),
+    ghiChu:[{time:new Date().toISOString(),noi:"🚨 TX tự báo: "+LOAI_MAP[loaiHienTai].label,nguoi:val("taiXe")||"TX"}]
+  };
+  if(loaiHienTai==="VCTN"){
+    Object.assign(base,{
+      diaDiem:val("diaDiem"),nhomLoi:val("nhomLoi"),moTa:val("moTa"),
+      huHong:val("huHong"),thietHaiXeKhac:val("thietHaiXeKhac"),
+      khachTrenXe:val("khachTrenXe"),
+      nguoiBiThuong:chk("nguoiBiThuong"),cqcaGiu:chk("cqcaGiu"),tenCQCA:val("tenCQCA"),
+      coBH:true,vanDoanhTamThoi:chk("vanDoanhTamThoi"),
+      xeVaoXuong:chk("xeVaoXuongVCTN"),xuongDuKien:chk("xeVaoXuongVCTN")?val("xuongVCTN"):""
+    });
+    base.ghiChu[0].noi="💥 TX báo VCTN: "+(val("diaDiem")||"Tại hiện trường");
+    if(chk("xeVaoXuongVCTN")) base.trangThaiMoi="XeVctn";
+    if(chk("vanDoanhTamThoi")) base.vanDoanhTamThoi=true;
+  }
+  if(loaiHienTai==="KY_THUAT"){Object.assign(base,{diaDiem:val("diaDiemKT"),moTaKT:val("moTaKT")});base.ghiChu[0].noi="🔧 TX báo lỗi: "+val("moTaKT").slice(0,60);}
+  if(loaiHienTai==="KHACH_HANG"){Object.assign(base,{tenKhach:val("tenKhach"),moTa:val("moTaKH")});base.ghiChu[0].noi="💬 TX báo KH: "+val("moTaKH").slice(0,60);}
+  if(loaiHienTai==="NGHI_VIEC"){
+    var soNgay=0;
+    if(val("ngayBatDau")&&val("ngayNghi")){
+      soNgay=Math.ceil((new Date(val("ngayNghi"))-new Date(val("ngayBatDau")))/86400000);
+    }
+    Object.assign(base,{
+      lyDo:val("lyDoNghi"),
+      ngayBatDau:val("ngayBatDau"),
+      ngayDuKienXong:val("ngayNghi"),
+      soNgayNghi:soNgay,
+      moTa:val("moTaNV")
+    });
+    base.ghiChu[0].noi="🚪 TX báo nghỉ: "+val("lyDoNghi")+(soNgay?" ("+soNgay+" ngày)":"");
+  }
+  if(loaiHienTai==="XUONG_CA"){Object.assign(base,{moTa:val("moTaXC"),diaDiem:val("viTriXC")});base.ghiChu[0].noi="🌙 TX xin xuống ca: "+val("moTaXC").slice(0,60);}
+  if(loaiHienTai==="XE_XUONG"){
+    var xuong=val("tenXuong")==="Xưởng khác"?val("tenXuongKhac"):val("tenXuong");
+    Object.assign(base,{
+      tenXuong:xuong,xuong:xuong,
+      nhomLoiXuong:val("nhomLoiXuong"),
+      chiTietHuHong:val("chiTietHuHong"),
+      odoVaoXuong:val("odoVaoXuong"),
+      ngayLayXe:val("ngayLayXe"),
+      trangThaiTruoc:"VanDoanhHangNgay",
+      trangThaiMoi:"XeVctn"
+    });
+    base.ghiChu[0].noi="🔨 TX báo vào xưởng: "+xuong+" · "+val("nhomLoiXuong");
+  }
+  return base;
+}
+
+function validate(){
+  if(!val("bienSo")){alert("Vui lòng nhập biển số xe");document.getElementById("bienSo").focus();return false;}
+  if(!val("taiXe")){alert("Vui lòng nhập tên tài xế");document.getElementById("taiXe").focus();return false;}
+  if(loaiHienTai==="VCTN"&&!val("diaDiem")){alert("Vui lòng nhập địa điểm");document.getElementById("diaDiem").focus();return false;}
+  if(loaiHienTai==="KY_THUAT"&&!val("moTaKT")){alert("Vui lòng mô tả lỗi");document.getElementById("moTaKT").focus();return false;}
+  if(loaiHienTai==="XE_XUONG"&&!val("tenXuong")){alert("Vui lòng chọn tên xưởng");document.getElementById("tenXuong").focus();return false;}
+  if(loaiHienTai==="XE_XUONG"&&!val("nhomLoiXuong")){alert("Vui lòng chọn nhóm lỗi");document.getElementById("nhomLoiXuong").focus();return false;}
+  return true;
+}
+
+async function submitForm(){
+  if(!validate())return;
+  var btn=document.getElementById("submitBtn");
+  btn.disabled=true; btn.textContent="⏳ Đang gửi...";
+  var data=buildData();
+  try{
+    var res=await fetch(FB_URL+"/suvus/"+data.id+".json",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
+    // XE_XUONG: ghi thêm log vào /xuong_log/ để lưu vết tạm thời
+    if(loaiHienTai==="XE_XUONG"){
+      var bsKey=(data.bienSo||"").replace(/[.\-\s]/g,"_").toUpperCase();
+      await fetch(FB_URL+"/xuong_log/"+bsKey+"_"+Date.now()+".json",{
+        method:"PUT",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          bienSo:data.bienSo,to:data.to,taiXe:data.taiXe,tenXuong:data.tenXuong,
+          nhomLoi:data.nhomLoiXuong,chiTiet:data.chiTietHuHong,odo:data.odoVaoXuong,
+          ngayVao:data.ngayTao,thoiGianVao:data.thoiGian,ngayLayXe:data.ngayLayXe,
+          trangThaiTruoc:"VanDoanhHangNgay",trangThaiMoi:"XeVctn",
+          svId:data.id,time:new Date().toISOString()
+        })
+      });
+    }
+    if(res.ok){
+      document.getElementById("main-form").style.display="none";
+      var s=document.getElementById("success");
+      s.style.display="flex"; s.classList.add("visible");
+      var msgs={VCTN:"Giữ nguyên hiện trường, chờ hướng dẫn từ GSVH.",KY_THUAT:"Tắt xe nếu có thể, chờ hỗ trợ từ GSVH.",KHACH_HANG:"Giữ bình tĩnh, GSVH sẽ xử lý sớm.",NGHI_VIEC:"Hoàn thành thủ tục theo hướng dẫn GSVH.",XUONG_CA:"Đưa xe về Depot theo hướng dẫn GSVH.",XE_XUONG:"GSVH đã nhận lệnh.\nXe chuyển trạng thái tạm thời khỏi vận doanh."};
+      document.getElementById("success-msg").innerHTML="GSVH đã nhận được báo cáo.<br/>"+msgs[loaiHienTai];
+      document.getElementById("success-id").textContent="Mã: "+data.id;
+    } else throw new Error();
+  }catch(e){
+    alert("Gửi thất bại. Vui lòng gọi trực tiếp cho GSVH.");
+    btn.disabled=false;
+    btn.textContent=LOAI_MAP[loaiHienTai].emoji+" Gửi báo cáo "+LOAI_MAP[loaiHienTai].label;
+  }
+}
+
+function resetForm(){
+  document.getElementById("main-form").style.display="block";
+  var s=document.getElementById("success"); s.style.display="none"; s.classList.remove("visible");
+  document.querySelectorAll("input[type=text],input[type=date],input[type=time],textarea").forEach(function(el){if(el.id!=="ngayTao"&&el.id!=="thoiGian")el.value="";});
+  document.querySelectorAll("input[type=number]").forEach(function(el){el.value="";});
+  document.querySelectorAll("input[type=checkbox]").forEach(function(el){el.checked=false;});
+  document.getElementById("tenCQCA-wrap").style.display="none";
+  document.getElementById("tenXuongKhac-wrap").style.display="none";
+  document.getElementById("xuongVCTN-wrap").style.display="none";
+  document.getElementById("warn-thuong").classList.remove("show");
+  var btn=document.getElementById("submitBtn"); btn.disabled=false;
+  chonLoai(loaiHienTai); window.scrollTo(0,0);
+}
+
+// AUTOCOMPLETE BIỂN SỐ
+const FB_VEH="https://suco-07-default-rtdb.asia-southeast1.firebasedatabase.app/vehicles";
+var vehCache=null; var acTimer=null;
+async function fetchVehicles(){if(vehCache)return vehCache;try{var r=await fetch(FB_VEH+'.json');var d=await r.json();vehCache=d||{};return vehCache;}catch(e){return {};}}
+async function onBienSoInput(v){
+  clearTimeout(acTimer); hideDropdown();
+  if(v.length<3)return;
+  acTimer=setTimeout(async function(){
+    var db=await fetchVehicles();
+    var q=v.replace(/[.\-\s]/g,'').toUpperCase();
+    var matches=Object.values(db).filter(function(veh){return(veh.bienSo||'').replace(/[.\-\s]/g,'').toUpperCase().includes(q);}).slice(0,6);
+    if(matches.length===0)return;
+    showDropdown(matches,document.getElementById('bienSo'));
+  },300);
+}
+function showDropdown(matches,inp){
+  hideDropdown();
+  var dd=document.createElement('div');
+  dd.id='bs-dropdown';
+  dd.style.cssText='position:absolute;z-index:999;background:#fff;border:1.5px solid #2DCCD3;border-radius:10px;box-shadow:0 4px 16px rgba(45,204,211,.2);width:'+inp.offsetWidth+'px;max-height:220px;overflow-y:auto;';
+  matches.forEach(function(v){
+    var item=document.createElement('div');
+    item.style.cssText='padding:10px 14px;cursor:pointer;border-bottom:1px solid #D5F5F6;font-size:13px;font-family:Nunito,sans-serif';
+    item.innerHTML='<strong style="color:#0B3335">'+v.bienSo+'</strong><span style="color:#17666A;font-size:11px;margin-left:8px">'+v.loaiXe+' · '+v.to+'</span>'+(v.tenTX?'<div style="color:#57D6DC;font-size:11px">'+v.tenTX+'</div>':'');
+    item.onmousedown=function(e){e.preventDefault();fillFromVehicle(v);hideDropdown();};
+    dd.appendChild(item);
+  });
+  dd.style.top=(inp.offsetTop+inp.offsetHeight+2)+'px';
+  dd.style.left=inp.offsetLeft+'px';
+  inp.parentElement.style.position='relative';
+  inp.parentElement.appendChild(dd);
+}
+function hideDropdown(){var el=document.getElementById('bs-dropdown');if(el)el.remove();}
+function fillFromVehicle(v){
+  if(document.getElementById('bienSo'))document.getElementById('bienSo').value=v.bienSo||'';
+  var toEl=document.getElementById('to');
+  if(toEl&&v.to){var toMap={'Tổ 01':'OCP.DOIXE07.01','Tổ 02':'OCP.DOIXE07.02','Tổ 03':'OCP.DOIXE07.03','Tổ 04':'OCP.DOIXE07.04','Tổ 05':'OCP.DOIXE07.05'};var fullTo=toMap[v.to]||v.to;Array.from(toEl.options).forEach(function(opt){if(opt.value===fullTo)opt.selected=true;});}
+  if(document.getElementById('taiXe')&&v.tenTX)document.getElementById('taiXe').value=v.tenTX;
+  var bhEl=document.getElementById('bhInfo');
+  if(bhEl)bhEl.textContent=v.bhDV?(v.bhDV+' · HH: '+(v.ngayHetHanBHVC||'--')):'';
+  window._selectedVehicle=v;
+}
+document.addEventListener('DOMContentLoaded',function(){
+  var inp=document.getElementById('bienSo');
+  if(inp){inp.addEventListener('input',function(e){onBienSoInput(e.target.value);});inp.addEventListener('blur',function(){setTimeout(hideDropdown,200);});}
+});
+</script>
+</body>
+</html>
