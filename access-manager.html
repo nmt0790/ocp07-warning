@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>OCP07 – Quản lý mã truy cập</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#071E20;font-family:'Nunito',sans-serif;color:#D5F5F6;min-height:100vh}
+.wrap{max-width:540px;margin:0 auto;padding:0 0 60px}
+.hdr{background:linear-gradient(160deg,#071E20,#0B3335);padding:18px 16px;border-bottom:2px solid #2DCCD3}
+.hdr h1{font-size:16px;font-weight:900;color:#fff;margin-bottom:2px}
+.hdr .sub{font-size:10px;color:#57D6DC}
+.body{padding:14px}
+.card{background:#0B3335cc;border:1px solid #17666A44;border-radius:12px;padding:14px;margin-bottom:12px}
+.ttl{font-size:10px;font-weight:900;color:#2DCCD3;letter-spacing:.8px;text-transform:uppercase;margin-bottom:12px}
+.f{margin-bottom:10px}
+.f label{display:block;font-size:9px;color:#57D6DC;text-transform:uppercase;letter-spacing:.6px;font-weight:800;margin-bottom:4px}
+.f input,.f select{width:100%;background:#071E20;border:1px solid #17666A;border-radius:8px;color:#D5F5F6;padding:9px 11px;font-size:13px;font-family:inherit;font-weight:600;outline:none;-webkit-appearance:none}
+.f input:focus,.f select:focus{border-color:#2DCCD3}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{width:100%;padding:12px;border:none;border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;transition:.2s;margin-top:4px}
+.btn:active{transform:scale(.98)}
+.btn-p{background:linear-gradient(135deg,#2DCCD3,#17666A);color:#fff}
+.btn-r{background:rgba(239,68,68,.1);color:#fca5a5;border:1px solid #ef444433}
+.btn-y{background:rgba(255,202,0,.1);color:#fcd34d;border:1px solid #FFCA0033}
+.log{background:#061C1F;border:1px solid #17666A33;border-radius:8px;padding:9px;font-size:11px;min-height:32px;white-space:pre-wrap;color:#57D6DC;margin-top:8px;display:none;font-family:monospace}
+.log.show{display:block}
+
+/* Code list */
+.code-item{background:#071E20;border:1px solid #17666A33;border-radius:10px;padding:11px 13px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.code-item.inactive{opacity:.5}
+.code-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#2DCCD3,#17666A);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff;flex-shrink:0}
+.code-info{flex:1;min-width:0}
+.code-name{font-size:13px;font-weight:800;color:#fff}
+.code-role{font-size:10px;color:#57D6DC;margin-top:2px}
+.code-hint{font-size:10px;color:#FFCA00;font-family:monospace;font-weight:700}
+.code-badge{font-size:9px;padding:2px 7px;border-radius:8px;font-weight:800}
+.badge-on{background:#22c55e22;color:#86efac;border:1px solid #22c55e44}
+.badge-off{background:#ef444422;color:#fca5a5;border:1px solid #ef444444}
+.toggle-btn{background:none;border:1px solid #17666A;border-radius:7px;color:#57D6DC;padding:4px 10px;font-size:10px;cursor:pointer;font-family:inherit;font-weight:700;flex-shrink:0}
+.toggle-btn:hover{border-color:#2DCCD3;color:#2DCCD3}
+
+/* Note */
+.note{background:rgba(45,204,211,.07);border:1px solid #2DCCD322;border-radius:8px;padding:9px 12px;font-size:11px;color:#57D6DC;margin-bottom:10px;line-height:1.7}
+.note.warn{background:rgba(255,202,0,.07);border-color:#FFCA0022;color:#fcd34d}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <h1>🔑 Quản lý mã truy cập</h1>
+    <div class="sub">OCP.DOIXE07 · Chỉ admin mới vào được trang này</div>
+  </div>
+  <div class="body">
+
+  <!-- INIT -->
+  <div class="card">
+    <div class="ttl">🚀 Khởi tạo lần đầu</div>
+    <div class="note">Upload toàn bộ mã mặc định lên Firebase. Chỉ cần làm 1 lần duy nhất.</div>
+    <button class="btn btn-p" onclick="initCodes()">⬆️ Upload mã mặc định lên Firebase</button>
+    <div class="log" id="log-init"></div>
+  </div>
+
+  <!-- DANH SÁCH -->
+  <div class="card">
+    <div class="ttl">📋 Danh sách mã hiện tại</div>
+    <button class="btn btn-y" onclick="loadCodes()" style="margin-bottom:10px">🔄 Tải danh sách từ Firebase</button>
+    <div id="code-list"><div style="font-size:11px;color:#57D6DC66;text-align:center;padding:16px">Bấm "Tải danh sách" để xem</div></div>
+  </div>
+
+  <!-- TẠO MÃ MỚI -->
+  <div class="card">
+    <div class="ttl">➕ Thêm / Cấp mã mới</div>
+    <div class="note warn">⚠️ Mã không được lưu vào Firebase — chỉ lưu hash SHA-256. Ghi lại mã trước khi bấm Tạo!</div>
+    <div class="r2">
+      <div class="f"><label>Họ tên *</label><input id="new-name" type="text" placeholder="Nguyễn Văn A"/></div>
+      <div class="f"><label>Vai trò</label>
+        <select id="new-role">
+          <option value="gsvh">GSVH</option>
+          <option value="truong_doi">Đội trưởng</option>
+          <option value="tx">Tài xế (tx-form)</option>
+          <option value="admin">Admin</option>
+          <option value="viewer">Xem</option>
+        </select>
+      </div>
+    </div>
+    <div class="f"><label>Mã truy cập * (tự đặt, ≥6 ký tự, VIẾT HOA)</label>
+      <input id="new-code" type="text" placeholder="VD: GSVH2024 hoặc TX_TUAN" style="font-family:monospace;letter-spacing:2px;font-weight:800" maxlength="20"/>
+    </div>
+    <div class="f"><label>Ghi chú</label><input id="new-note" type="text" placeholder="VD: Tổ 3 · Thay thế Việt Anh"/></div>
+    <button class="btn btn-p" onclick="createCode()">🔑 Tạo mã & Upload Firebase</button>
+    <div class="log" id="log-create"></div>
+  </div>
+
+  <!-- LOG TRUY CẬP -->
+  <div class="card">
+    <div class="ttl">📊 Log truy cập gần đây</div>
+    <button class="btn btn-y" onclick="loadLogs()" style="margin-bottom:10px">🔄 Xem log truy cập</button>
+    <div id="access-logs"></div>
+  </div>
+
+  </div>
+</div>
+
+<script>
+const FB = "https://suco-07-default-rtdb.asia-southeast1.firebasedatabase.app";
+
+// SHA-256
+async function sha256(str) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+
+const showLog = (id,msg,cls) => {
+  const el=document.getElementById(id);
+  el.className='log show';
+  el.style.color=cls==='ok'?'#4ade80':cls==='err'?'#ef4444':'#57D6DC';
+  el.textContent=msg;
+};
+
+async function fbPut(path,data){ const r=await fetch(FB+path+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}); return r.ok; }
+async function fbPatch(path,data){ const r=await fetch(FB+path+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}); return r.ok; }
+async function fbGet(path){ const r=await fetch(FB+path+'.json'); return await r.json(); }
+
+// ── Init mã mặc định ─────────────────────────────────────────────────────────
+async function initCodes() {
+  if(!confirm('Upload mã mặc định cho 6 GSVH + TX + Admin lên Firebase?')) return;
+  showLog('log-init','⏳ Đang upload...','');
+  try {
+    const ok = await fbPut('/access_codes', INIT_CODES);
+    if(ok) showLog('log-init','✅ Upload thành công!\n8 mã đã lên Firebase /access_codes\n⏱ '+new Date().toLocaleString('vi-VN'),'ok');
+    else showLog('log-init','❌ Lỗi!','err');
+  } catch(e){ showLog('log-init','❌ '+e.message,'err'); }
+}
+
+// ── Load danh sách ────────────────────────────────────────────────────────────
+async function loadCodes() {
+  const el = document.getElementById('code-list');
+  el.innerHTML='<div style="font-size:11px;color:#57D6DC66;text-align:center;padding:12px">⏳ Đang tải...</div>';
+  try {
+    const data = await fbGet('/access_codes');
+    if(!data){ el.innerHTML='<div style="font-size:11px;color:#57D6DC66;text-align:center;padding:12px">Chưa có mã nào</div>'; return; }
+    const items = Object.entries(data);
+    const roleIcon = {truong_doi:'⭐',gsvh:'👤',tx:'🚖',admin:'🔑',viewer:'👁️'};
+    el.innerHTML = items.map(([hash,c])=>`
+      <div class="code-item ${c.active===false?'inactive':''}" id="ci-${hash.slice(0,8)}">
+        <div class="code-avatar">${(c.name||'?')[0]}</div>
+        <div class="code-info">
+          <div class="code-name">${roleIcon[c.role]||''} ${c.name||'—'}</div>
+          <div class="code-role">${c.role||''} · ${c.note||''}</div>
+          <div class="code-hint">Mã: ${c.code_hint||'***'}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">
+          <span class="code-badge ${c.active!==false?'badge-on':'badge-off'}">${c.active!==false?'✅ Hoạt động':'❌ Vô hiệu'}</span>
+          <button class="toggle-btn" onclick="toggleCode('${hash}',${c.active!==false})">${c.active!==false?'Vô hiệu hóa':'Kích hoạt'}</button>
+        </div>
+      </div>
+    `).join('');
+    const active = items.filter(([,c])=>c.active!==false).length;
+    el.innerHTML = `<div style="font-size:10px;color:#57D6DC;margin-bottom:8px">Tổng: ${items.length} mã · Hoạt động: ${active}</div>` + el.innerHTML;
+  } catch(e){ el.innerHTML='<div style="color:#ef4444;font-size:11px">Lỗi: '+e.message+'</div>'; }
+}
+
+// ── Toggle active ─────────────────────────────────────────────────────────────
+async function toggleCode(hash, isActive) {
+  const action = isActive ? 'vô hiệu hóa' : 'kích hoạt';
+  if(!confirm(`Bạn muốn ${action} mã này?`)) return;
+  try {
+    await fbPatch('/access_codes/'+hash, {active: !isActive});
+    await loadCodes();
+  } catch(e){ alert('Lỗi: '+e.message); }
+}
+
+// ── Tạo mã mới ────────────────────────────────────────────────────────────────
+async function createCode() {
+  const name = document.getElementById('new-name').value.trim();
+  const code = document.getElementById('new-code').value.trim().toUpperCase();
+  const role = document.getElementById('new-role').value;
+  const note = document.getElementById('new-note').value.trim();
+
+  if(!name){ alert('Nhập họ tên!'); return; }
+  if(!code || code.length < 6){ alert('Mã tối thiểu 6 ký tự!'); return; }
+
+  if(!confirm(`Tạo mã:\nTên: ${name}\nMã: ${code}\nVai trò: ${role}\n\n⚠️ Ghi lại mã trước khi bấm OK!`)) return;
+
+  showLog('log-create','⏳ Đang tạo mã...','');
+  try {
+    const hash = await sha256(code);
+    const data = {
+      name, role, note,
+      active: true,
+      code_hint: code.slice(0,3)+'***',
+      createdAt: new Date().toISOString().slice(0,10)
+    };
+    await fbPatch('/access_codes', {[hash]: data});
+    showLog('log-create',
+      `✅ Đã tạo mã thành công!\nTên: ${name}\nMã: ${code}\nVai trò: ${role}\nHash: ${hash.slice(0,16)}...\n\n📌 GHI LẠI MÃ NÀY — Firebase không lưu mã gốc!`,
+      'ok');
+    document.getElementById('new-name').value='';
+    document.getElementById('new-code').value='';
+    document.getElementById('new-note').value='';
+    loadCodes();
+  } catch(e){ showLog('log-create','❌ '+e.message,'err'); }
+}
+
+// ── Log truy cập ──────────────────────────────────────────────────────────────
+async function loadLogs() {
+  const el = document.getElementById('access-logs');
+  el.innerHTML='<div style="font-size:11px;color:#57D6DC66;text-align:center;padding:8px">⏳</div>';
+  try {
+    const data = await fbGet('/access_logs');
+    if(!data){ el.innerHTML='<div style="font-size:11px;color:#57D6DC66">Chưa có log</div>'; return; }
+    const logs = Object.values(data).sort((a,b)=>b.time?.localeCompare(a.time)).slice(0,20);
+    el.innerHTML = logs.map(l=>`
+      <div style="border-bottom:1px solid #17666A22;padding:7px 0;font-size:11px">
+        <div style="color:#fff;font-weight:700">${l.name||'—'} <span style="color:#57D6DC;font-weight:400">· ${l.role||''}</span></div>
+        <div style="color:#57D6DC;font-size:10px">${l.page||''} · ${l.time?new Date(l.time).toLocaleString('vi-VN'):''}</div>
+      </div>
+    `).join('');
+  } catch(e){ el.innerHTML='<div style="color:#ef4444;font-size:11px">Lỗi: '+e.message+'</div>'; }
+}
+
+// ── Init codes (mặc định) ─────────────────────────────────────────────────────
+
+const INIT_CODES = {"40c8eab576cd433bebb7a3f91191557360f22136a5c8963b647e63d158f9bdcd": {"name": "Lân", "role": "truong_doi", "note": "Đội trưởng", "active": true, "code_hint": "LAN***", "createdAt": "2026-05-29"}, "1f8e87823322c419224db16e57dffd7325ed7bdda7ed313cec1443acd8e756bd": {"name": "Toản", "role": "gsvh", "note": "Tổ 1 · BH", "active": true, "code_hint": "TOA***", "createdAt": "2026-05-29"}, "35b6d37b14f4fc4e45275704626b11b6aad40f3d9c065e3b2a68fa623982319c": {"name": "Tú", "role": "gsvh", "note": "Tổ 2", "active": true, "code_hint": "TU2***", "createdAt": "2026-05-29"}, "d2960ae23885dd3895744b265c037028032cb72db2d033b0fefab042239d5699": {"name": "Việt Anh", "role": "gsvh", "note": "Tổ 3", "active": true, "code_hint": "VIE***", "createdAt": "2026-05-29"}, "4801c5c864de534c8064d359a654b40305880099574707eab061a6aae2b2edd0": {"name": "Thành", "role": "gsvh", "note": "Tổ 4", "active": true, "code_hint": "THA***", "createdAt": "2026-05-29"}, "3589afc2e79fbe985f1ea4372443747ca5a88e2ada85783306585e26bd9b1a34": {"name": "Huy", "role": "gsvh", "note": "Tổ 5", "active": true, "code_hint": "HUY***", "createdAt": "2026-05-29"}, "3eec578bbc840ebd240737a2b023cb13425c1ded873456cd357780e378b241bd": {"name": "TX", "role": "tx", "note": "Form tài xế", "active": true, "code_hint": "TXF***", "createdAt": "2026-05-29"}, "22df451caf51c29b2f9b057df133a6e1400a7b82452a5c9b356ade8dfaf846bb": {"name": "Admin", "role": "admin", "note": "Toàn quyền", "active": true, "code_hint": "OCP***", "createdAt": "2026-05-29"}};
+</script>
+</body>
+</html>
