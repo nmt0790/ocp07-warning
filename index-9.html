@@ -3030,6 +3030,7 @@ function BHTVSearch() {
   const [sortBy, setSortBy] = useState("hhBHVC");
   const [filterHH, setFilterHH] = useState("ALL");
   const [copied, setCopied] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const norm = s => (s||'').replace(/[.\-\s]/g,'').toUpperCase();
 
@@ -3110,8 +3111,7 @@ function BHTVSearch() {
     return {total:results.length,het:het.length,sap:sap.length,ok:ok.length};
   })();
 
-  const copyReport = () => {
-    const het = results.filter(v=>{const d=daysDiff(v.ngayHetHanBHVC);return d!==null&&d<0;});
+  const copyReport = () => {    const het = results.filter(v=>{const d=daysDiff(v.ngayHetHanBHVC);return d!==null&&d<0;});
     const sap = results.filter(v=>{const d=daysDiff(v.ngayHetHanBHVC);return d!==null&&d>=0&&d<=30;});
     const L=[];
     L.push(`🛡️ BÁO CÁO BHVC – OCP.DOIXE07`);
@@ -3126,6 +3126,83 @@ function BHTVSearch() {
     L.push('');L.push('━━━━━━━━━━━━━━━━━━━━━━');L.push('📍 OCP.DOIXE07 · Depot Hà Nội 1');
     navigator.clipboard.writeText(L.join('\n')).catch(()=>{});
     setCopied(true); setTimeout(()=>setCopied(false),2500);
+  };
+
+  const exportExcel = async () => {
+    setExporting(true);
+    try {
+      // Load SheetJS nếu chưa có
+      if (!window.XLSX) {
+        await new Promise((res,rej) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+          s.onload = res; s.onerror = rej;
+          document.head.appendChild(s);
+        });
+      }
+      const XLSX = window.XLSX;
+
+      // Build data rows
+      const fmtD = s => {
+        if (!s) return '';
+        if (s.includes('-')) { const [y,m,d]=s.split('-'); return `${d}/${m}/${y}`; }
+        return s;
+      };
+      const statusLabel = dateStr => {
+        const diff = daysDiff(dateStr);
+        if (diff===null) return 'Chưa có';
+        if (diff<0) return `Hết hạn ${Math.abs(diff)} ngày`;
+        if (diff<=30) return `Còn ${diff} ngày ⚠️`;
+        return `Còn ${diff} ngày`;
+      };
+
+      const rows = results.map(v => ({
+        'Biển số':        v.bienSo||'',
+        'Loại xe':        (loaiMap[v.loaiXe]||v.loaiXe||''),
+        'Tổ':             v.to||'',
+        'Tài xế':         v.tenTX||'',
+        'Công ty BH':     v.bhDV||'',
+        'Phạm vi BH':     v.phamViBH||'',
+        'Ngày ký BHVC':   fmtD(v.ngayKyBHVC||''),
+        'HH BHVC':        fmtD(v.ngayHetHanBHVC||''),
+        'Tình trạng BHVC':statusLabel(v.ngayHetHanBHVC),
+        'SĐT công ty BH': v.sdtBH||'',
+        'HH TNDS':        fmtD(v.ngayHetHanBHTNDS||''),
+        'Hạn đăng kiểm':  fmtD(v.hanDangKiem||''),
+        'Số khung':       v.soKhung||'',
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+
+      // Độ rộng cột
+      ws['!cols'] = [
+        {wch:12},{wch:10},{wch:16},{wch:22},{wch:18},{wch:16},
+        {wch:14},{wch:14},{wch:20},{wch:14},{wch:14},{wch:14},{wch:20}
+      ];
+
+      const wb = XLSX.utils.book_new();
+      const filterName = filterHH==='het'?'Het_han':filterHH==='sap'?'Sap_het':filterHH==='con'?'Con_han':'Tat_ca';
+      XLSX.utils.book_append_sheet(wb, ws, 'BHVC_'+filterName);
+
+      // Sheet tổng hợp
+      const sumRows = [
+        {'Chỉ tiêu':'Tổng xe',                   'Số xe':results.length},
+        {'Chỉ tiêu':'🔴 Đã hết hạn',              'Số xe':stats.het},
+        {'Chỉ tiêu':'🟡 Sắp hết (≤30 ngày)',       'Số xe':stats.sap},
+        {'Chỉ tiêu':'🟢 Còn hạn',                 'Số xe':stats.ok},
+        {'Chỉ tiêu':'Ngày xuất',                  'Số xe':new Date().toLocaleDateString('vi-VN')},
+        {'Chỉ tiêu':'Lọc theo',                   'Số xe':filterHH==='het'?'Hết hạn':filterHH==='sap'?'Sắp hết':filterHH==='con'?'Còn hạn':'Tất cả'},
+      ];
+      const ws2 = XLSX.utils.json_to_sheet(sumRows);
+      ws2['!cols'] = [{wch:24},{wch:16}];
+      XLSX.utils.book_append_sheet(wb, ws2, 'Tổng hợp');
+
+      const fileName = `BHVC_OCP07_${fmtDate(today()).replace(/\//g,'-')}_${filterName}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+    } catch(e) {
+      alert('Lỗi xuất Excel: ' + e.message);
+    }
+    setExporting(false);
   };
 
   const IS = {background:C.card,border:`1px solid ${C.border}`,borderRadius:8,color:C.text,padding:"9px 11px",fontSize:13,outline:"none",fontFamily:"inherit"};
@@ -3176,8 +3253,13 @@ function BHTVSearch() {
       ))
     ),
 
-    searched && results.length>0 && /*#__PURE__*/React.createElement("button",{onClick:copyReport,style:{width:"100%",background:"rgba(45,204,211,0.1)",border:`1px solid ${C.accent}44`,borderRadius:10,padding:"9px 12px",color:copied?"#22c55e":C.accent,fontSize:12,fontWeight:800,cursor:"pointer",fontFamily:"inherit",marginBottom:12}},
-      copied?"✅ Đã copy báo cáo BHVC!":"📋 Copy báo cáo BHVC → Zalo"
+    searched && results.length>0 && /*#__PURE__*/React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}},
+      /*#__PURE__*/React.createElement("button",{onClick:copyReport,style:{padding:"10px 8px",background:"rgba(45,204,211,0.1)",border:`1px solid ${C.accent}44`,borderRadius:10,color:copied?"#22c55e":C.accent,fontSize:12,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}},
+        copied?"✅ Đã copy!":"📋 Copy → Zalo"
+      ),
+      /*#__PURE__*/React.createElement("button",{onClick:exportExcel,disabled:exporting,style:{padding:"10px 8px",background:"rgba(34,197,94,0.1)",border:"1px solid rgba(34,197,94,0.35)",borderRadius:10,color:exporting?"#57D6DC":"#4ade80",fontSize:12,fontWeight:800,cursor:exporting?"not-allowed":"pointer",fontFamily:"inherit"}},
+        exporting?"⏳ Đang xuất...":"📥 Xuất Excel"
+      )
     ),
 
     searched && results.length===0 && /*#__PURE__*/React.createElement("div",{style:{textAlign:"center",color:C.sub,padding:"40px 0",fontSize:13}},"Không tìm thấy xe nào phù hợp"),
@@ -3630,23 +3712,21 @@ function App() {
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
-      gap: 3,
+      gap: 2,
       background: "none",
       border: "none",
       color: view === v ? C.accent : C.sub,
       cursor: "pointer",
-      padding: "8px 10px",
-      fontFamily: "inherit"
+      padding: "6px 6px",
+      fontFamily: "inherit",
+      flex: 1,
+      borderTop: view === v ? `2px solid ${C.accent}` : "2px solid transparent",
+      transition: "color .15s"
     }
   }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 19
-    }
+    style: { fontSize: 18 }
   }, icon), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 9,
-      fontWeight: view === v ? 700 : 400
-    }
+    style: { fontSize: 9, fontWeight: view === v ? 800 : 400, letterSpacing: -.2 }
   }, label));
   return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("style", null, `
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
@@ -3917,20 +3997,13 @@ function App() {
   })))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
-      justifyContent: "space-around",
-      padding: "8px 0",
+      justifyContent: "stretch",
+      padding: "0",
       borderTop: `1px solid ${C.border}`,
       background: C.bg,
       flexShrink: 0
     }
-  }, navBtn("dashboard", "Tổng quan", "📊"), navBtn("list", "Danh sách", "📋"), navBtn("report", "Báo cáo", "📈"), navBtn("bhtv", "BH TV", "🛡️"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setView("xetx"),
-    style: {display:"flex",flexDirection:"column",alignItems:"center",gap:3,background:"none",border:"none",cursor:"pointer",padding:"8px 10px",fontFamily:"inherit"}
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {width:44,height:44,background:view==="xetx"?"linear-gradient(135deg,#a78bfa,#7c3aed)":"linear-gradient(135deg,#0B3335,#17666A)",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,marginTop:-20,boxShadow:view==="xetx"?"0 4px 14px rgba(167,139,250,0.5)":"0 2px 8px rgba(0,0,0,0.3)",border:view==="xetx"?"2px solid #a78bfa":"2px solid #17666A"}
-  }, "\uD83D\uDD0D"), /*#__PURE__*/React.createElement("span", {
-    style: {fontSize:9,color:view==="xetx"?"#a78bfa":C.sub,fontWeight:view==="xetx"?800:500}
-  }, "Xe & TX")))), chiTiet && !formData && /*#__PURE__*/React.createElement(ChiTiet, {
+  }, navBtn("dashboard", "Tổng quan", "📊"), navBtn("list", "Danh sách", "📋"), navBtn("report", "Báo cáo", "📈"), navBtn("bhtv", "BH TV", "🛡️"), navBtn("xetx", "Xe & TX", "🔍"))), chiTiet && !formData && /*#__PURE__*/React.createElement(ChiTiet, {
     sv: chiTiet,
     onClose: () => setChiTiet(null),
     onUpdate: sv => {
